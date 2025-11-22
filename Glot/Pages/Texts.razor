@@ -1,0 +1,189 @@
+@page "/texts"
+@using POT_SEM.Core.Models
+@using POT_SEM.Core.Builders
+@inject TextProviderBuilder Builder
+
+<PageTitle>Multilingual Text Browser</PageTitle>
+
+<h3>🌍 Language Learning Texts</h3>
+
+<div class="controls">
+    <div class="form-group">
+        <label>Language:</label>
+        <select @bind="selectedLanguage" class="form-select">
+            <option value="en">🇬🇧 English</option>
+            <option value="ar">🇸🇦 Arabic (العربية)</option>
+            <option value="sk">🇸🇰 Slovak (Slovenčina)</option>
+            <option value="ru">🇷🇺 Russian (Русский)</option>
+            <option value="ja">🇯🇵 Japanese (日本語)</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label>Difficulty:</label>
+        <select @bind="selectedDifficulty" class="form-select">
+            <option value="@DifficultyLevel.Beginner">🌱 Beginner</option>
+            <option value="@DifficultyLevel.Intermediate">🌿 Intermediate</option>
+            <option value="@DifficultyLevel.Advanced">🌲 Advanced</option>
+        </select>
+    </div>
+    
+    <button @onclick="LoadTexts" class="btn btn-primary" disabled="@isLoading">
+        @if (isLoading)
+        {
+            <span>⏳ Loading...</span>
+        }
+        else
+        {
+            <span>🔍 Load Texts</span>
+        }
+    </button>
+</div>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">❌ @errorMessage</div>
+}
+
+@if (texts != null && texts.Any())
+{
+    <div class="texts">
+        <p class="info">
+            ✅ Found <strong>@texts.Count</strong> texts 
+            (@selectedLanguage - @selectedDifficulty)
+        </p>
+        
+        @foreach (var text in texts)
+        {
+            <div class="text-card">
+                <h4>@text.Title</h4>
+                <div class="meta">
+                    <span class="badge bg-info">@text.Difficulty</span>
+                    <span class="badge bg-secondary">~@text.Metadata.EstimatedReadingTimeMinutes min</span>
+                    <span class="badge bg-light text-dark">@text.Metadata.EstimatedWordCount words</span>
+                    <span class="badge bg-success">@text.Metadata.Source</span>
+                </div>
+                <p class="excerpt">@GetExcerpt(text.Content)</p>
+                <a href="@text.Metadata.SourceUrl" target="_blank" class="btn btn-sm btn-outline-primary">
+                    Read source →
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private string selectedLanguage = "en";
+    private DifficultyLevel selectedDifficulty = DifficultyLevel.Beginner;
+    private bool isLoading = false;
+    private string? errorMessage = null;
+    private List<POT_SEM.Core.Models.Text>? texts;
+    
+    private async Task LoadTexts()
+    {
+        isLoading = true;
+        errorMessage = null;
+        texts = null;
+        
+        try
+        {
+            // 🔥 POUŽITIE BUILDER + BRIDGE + STRATEGY!
+            var provider = Builder
+                .ForLanguage(selectedLanguage)
+                .ForDifficulty(selectedDifficulty)
+                .Build();
+            
+            texts = await provider.GetTextsAsync(topic: null, count: 5);
+            
+            Console.WriteLine($"✅ Loaded {texts.Count} {selectedDifficulty} texts in {selectedLanguage}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"❌ Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private string GetExcerpt(string content)
+    {
+        var words = content.Split(' ').Take(40);
+        return string.Join(" ", words) + "...";
+    }
+}
+
+<style>
+    .controls {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 200px;
+    }
+    
+    .form-select {
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .info {
+        background: #f0f8ff;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+    
+    .texts {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .text-card {
+        border: 1px solid #ddd;
+        padding: 1.5rem;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .text-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: #333;
+    }
+    
+    .meta {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .excerpt {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+    
+    .bg-info { background-color: #17a2b8; color: white; }
+    .bg-secondary { background-color: #6c757d; color: white; }
+    .bg-light { background-color: #f8f9fa; }
+    .bg-success { background-color: #28a745; color: white; }
+</style>

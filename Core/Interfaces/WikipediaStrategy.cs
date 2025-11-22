@@ -1,6 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
-using System.Text.Json;
 
 namespace POT_SEM.Services.FetchStrategies
 {

@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Core\Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="TextSources\ILanguageTextSource.cs" />
+  </ItemGroup>
+
 </Project>

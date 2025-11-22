@@ -1,4 +1,7 @@
-using POT_SEM.Core.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using POT_SEM.Core.Interfaces;
+using POT_SEM.Core.Models;  
 
 namespace POT_SEM.Core.Interfaces
 {
@@ -10,7 +13,7 @@ namespace POT_SEM.Core.Interfaces
     {
         string LanguageCode { get; }
         string LanguageName { get; }
-        
+
         Task<List<Text>> FetchTextsAsync(TextSearchCriteria criteria);
         bool SupportsDifficulty(DifficultyLevel level);
         Task<List<string>> GetAvailableTopicsAsync();

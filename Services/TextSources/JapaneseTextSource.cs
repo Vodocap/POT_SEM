@@ -1,6 +1,8 @@
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 using System.Text.Json;
+using POT_SEM.Core.Interfaces;
+using POT_SEM.Core.Models;  
 
 namespace POT_SEM.Services.TextSources
 {
@@ -14,7 +16,7 @@ namespace POT_SEM.Services.TextSources
         }
         
         public string LanguageCode => "ja";
-        public string LanguageName => "Japanese (日本語)";
+        public string LanguageName => "Japanese (日本語)"; // 日本語 (にほんご, Nihongo) = "Japanese (language)"
         
         public async Task<List<Text>> FetchTextsAsync(TextSearchCriteria criteria)
         {
@@ -24,9 +26,9 @@ namespace POT_SEM.Services.TextSources
             {
                 var topics = criteria.Difficulty switch
                 {
-                    DifficultyLevel.Beginner => new[] { "日本", "食べ物", "家族" },
-                    DifficultyLevel.Intermediate => new[] { "日本の歴史", "日本文化" },
-                    _ => new[] { "日本文学", "哲学" }
+                    DifficultyLevel.Beginner => new[] { "日本" /* 日本 (にほん, Nihon) = "Japan" */, "食べ物" /* 食べ物 (たべもの, tabemono) = "food" */, "家族" /* 家族 (かぞく, kazoku) = "family" */ },
+                    DifficultyLevel.Intermediate => new[] { "日本の歴史" /* 日本の歴史 (にほんのれきし) = "History of Japan" */, "日本文化" /* 日本文化 (にほんぶんか) = "Japanese culture" */ },
+                    _ => new[] { "日本文学" /* 日本文学 (にほんぶんがく) = "Japanese literature" */, "哲学" /* 哲学 (てつがく, tetsugaku) = "philosophy" */ }
                 };
                 
                 var topic = criteria.Topic ?? topics[Random.Shared.Next(topics.Length)];
@@ -49,7 +51,7 @@ namespace POT_SEM.Services.TextSources
                         
                         texts.Add(new Text
                         {
-                            Title = data.RootElement.GetProperty("title").GetString() ?? "タイトルなし",
+                            Title = data.RootElement.GetProperty("title").GetString() ?? "タイトルなし" /* タイトルなし (タイトルなし) = "No title" */,
                             Content = extract,
                             Language = LanguageCode,
                             Difficulty = criteria.Difficulty,
@@ -75,7 +77,14 @@ namespace POT_SEM.Services.TextSources
         
         public async Task<List<string>> GetAvailableTopicsAsync()
         {
-            return new List<string> { "歴史", "文化", "科学", "スポーツ", "芸術" };
+            return new List<string> 
+            { 
+                "歴史" /* 歴史 (れきし, rekishi) = "history" */, 
+                "文化" /* 文化 (ぶんか, bunka) = "culture" */, 
+                "科学" /* 科学 (かがく, kagaku) = "science" */, 
+                "スポーツ" /* スポーツ (supōtsu) = "sports" */, 
+                "芸術" /* 芸術 (げいじゅつ, geijutsu) = "arts" */ 
+            };
         }
     }
 }

@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Services\TextSources\ILanguageTextSource.cs">
+      <Link>Interfaces\ILanguageTextSource.cs</Link>
+    </Compile>
+  </ItemGroup>
+
 </Project>

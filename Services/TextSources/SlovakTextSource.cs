@@ -1,6 +1,8 @@
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 using System.Text.Json;
+using POT_SEM.Core.Interfaces;
+using POT_SEM.Core.Models;  
 
 namespace POT_SEM.Services.TextSources
 {

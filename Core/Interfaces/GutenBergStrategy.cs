@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 

@@ -1,6 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 using System.Text.Json;
+using POT_SEM.Core.Interfaces;
+using POT_SEM.Core.Models;  
 
 namespace POT_SEM.Services.TextSources
 {
@@ -25,7 +32,7 @@ namespace POT_SEM.Services.TextSources
         }
         
         public string LanguageCode => "ar";
-        public string LanguageName => "Arabic (العربية)";
+        public string LanguageName => "Arabic (العربية)"; // العربية (al-ʿarabiyya) = "Arabic"
         
         public async Task<List<Text>> FetchTextsAsync(TextSearchCriteria criteria)
         {
@@ -42,7 +49,14 @@ namespace POT_SEM.Services.TextSources
         
         public async Task<List<string>> GetAvailableTopicsAsync()
         {
-            return new List<string> { "الثقافة", "التاريخ", "العلوم", "الأدب", "التعليم" };
+            return new List<string> 
+            { 
+                "الثقافة" /* الثَّقافة (al-thaqāfah) = "culture" */, 
+                "التاريخ" /* التَّاريخ (al-tārīkh) = "history" */, 
+                "العلوم" /* العُلوم (al-ʿulūm) = "science" */, 
+                "الأدب"   /* الأَدَب (al-adab) = "literature" */, 
+                "التعليم" /* التَّعليم (al-taʿlīm) = "education" */ 
+            };
         }
         
         private async Task<List<Text>> FetchBeginnerTexts(TextSearchCriteria criteria)
@@ -51,7 +65,12 @@ namespace POT_SEM.Services.TextSources
             
             try
             {
-                var topics = new[] { "الأطفال", "الأسرة", "الطعام" };
+                var topics = new[] 
+                { 
+                    "الأطفال" /* الأَطفَال (al-aṭfāl) = "children" */, 
+                    "الأسرة"  /* الأُسْرة (al-usrah) = "family" */, 
+                    "الطعام"  /* الطَّعام (al-ṭaʿām) = "food" */ 
+                };
                 var topic = criteria.Topic ?? topics[Random.Shared.Next(topics.Length)];
                 
                 var url = $"https://ar.wikipedia.org/api/rest_v1/page/summary/{Uri.EscapeDataString(topic)}";
@@ -69,7 +88,7 @@ namespace POT_SEM.Services.TextSources
                         
                         texts.Add(new Text
                         {
-                            Title = data.RootElement.GetProperty("title").GetString() ?? "بدون عنوان",
+                            Title = data.RootElement.GetProperty("title").GetString() ?? "بدون عنوان" /* بدون عنوان (bidūn ʿunwān) = "No title" */,
                             Content = simplified,
                             Language = LanguageCode,
                             Difficulty = criteria.Difficulty,
@@ -97,7 +116,7 @@ namespace POT_SEM.Services.TextSources
             
             try
             {
-                var topic = criteria.Topic ?? "التكنولوجيا";
+                var topic = criteria.Topic ?? "التكنولوجيا" /* التِّكنولوجيا (al-tiknūlūjyā) = "technology" */;
                 var url = $"https://ar.wikipedia.org/api/rest_v1/page/summary/{Uri.EscapeDataString(topic)}";
                 
                 var response = await _httpClient.GetAsync(url);
@@ -112,7 +131,7 @@ namespace POT_SEM.Services.TextSources
                     {
                         texts.Add(new Text
                         {
-                            Title = data.RootElement.GetProperty("title").GetString() ?? "بدون عنوان",
+                            Title = data.RootElement.GetProperty("title").GetString() ?? "بدون عنوان" /* بدون عنوان (bidūn ʿunwān) = "No title" */,
                             Content = extract,
                             Language = LanguageCode,
                             Difficulty = criteria.Difficulty,
