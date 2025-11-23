@@ -1,13 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 using System.Text.Json;
-using POT_SEM.Core.Interfaces;
-using POT_SEM.Core.Models;  
 
 namespace POT_SEM.Services.TextSources
 {
@@ -17,145 +10,87 @@ namespace POT_SEM.Services.TextSources
     public class ArabicTextSource : ILanguageTextSource
     {
         private readonly HttpClient _httpClient;
-        private readonly Dictionary<DifficultyLevel, Func<TextSearchCriteria, Task<List<Text>>>> _strategies;
+        private readonly ITopicGenerationStrategy _topicStrategy;
         
-        public ArabicTextSource(HttpClient httpClient)
+        public ArabicTextSource(HttpClient httpClient, ITopicGenerationStrategy topicStrategy)
         {
             _httpClient = httpClient;
-            
-            _strategies = new()
-            {
-                [DifficultyLevel.Beginner] = FetchBeginnerTexts,
-                [DifficultyLevel.Intermediate] = FetchIntermediateTexts,
-                [DifficultyLevel.Advanced] = FetchAdvancedTexts
-            };
+            _topicStrategy = topicStrategy;
         }
         
         public string LanguageCode => "ar";
-        public string LanguageName => "Arabic (العربية)"; // العربية (al-ʿarabiyya) = "Arabic"
+        public string LanguageName => "Arabic (العربية)";
         
         public async Task<List<Text>> FetchTextsAsync(TextSearchCriteria criteria)
         {
-            if (_strategies.TryGetValue(criteria.Difficulty, out var strategy))
+            var texts = new List<Text>();
+            
+            // Get random topics - use criteria count
+            var topics = await _topicStrategy.GenerateTopicsAsync(
+                LanguageCode, 
+                criteria.Difficulty, 
+                criteria.MaxResults ?? 10);
+            
+            Console.WriteLine($"📚 جلب {topics.Count} نصوص عربية لـ {criteria.Difficulty}");
+            
+            foreach (var topic in topics)
             {
-                Console.WriteLine($"📚 {LanguageName}: Fetching {criteria.Difficulty} texts");
-                return await strategy(criteria);
+                try
+                {
+                    var text = await FetchSingleText(topic, criteria);
+                    if (text != null)
+                    {
+                        texts.Add(text);
+                        Console.WriteLine($"   ✅ {topic} ({text.Metadata.EstimatedWordCount} كلمات)");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"   ⚠️ فشل: {topic} - {ex.Message}");
+                }
             }
             
-            return new List<Text>();
+            Console.WriteLine($"   المجموع: {texts.Count}/{topics.Count}");
+            
+            return texts;
         }
         
-        public bool SupportsDifficulty(DifficultyLevel level) => _strategies.ContainsKey(level);
-        
-        public async Task<List<string>> GetAvailableTopicsAsync()
+        private async Task<Text?> FetchSingleText(string topic, TextSearchCriteria criteria)
         {
-            return new List<string> 
-            { 
-                "الثقافة" /* الثَّقافة (al-thaqāfah) = "culture" */, 
-                "التاريخ" /* التَّاريخ (al-tārīkh) = "history" */, 
-                "العلوم" /* العُلوم (al-ʿulūm) = "science" */, 
-                "الأدب"   /* الأَدَب (al-adab) = "literature" */, 
-                "التعليم" /* التَّعليم (al-taʿlīm) = "education" */ 
+            var url = $"https://ar.wikipedia.org/api/rest_v1/page/summary/{Uri.EscapeDataString(topic)}";
+            
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return null;
+            
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonDocument.Parse(json);
+            var extract = data.RootElement.GetProperty("extract").GetString() ?? "";
+            
+            if (string.IsNullOrEmpty(extract)) return null;
+            
+            // Don't pre-truncate - let TextProvider handle it
+            // Return full extract
+            
+            return new Text
+            {
+                Title = data.RootElement.GetProperty("title").GetString() ?? "بدون عنوان",
+                Content = extract,
+                Language = LanguageCode,
+                Difficulty = criteria.Difficulty,
+                Metadata = new TextMetadata
+                {
+                    Source = "Arabic Wikipedia",
+                    EstimatedWordCount = extract.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length,
+                    SourceUrl = url
+                }
             };
         }
         
-        private async Task<List<Text>> FetchBeginnerTexts(TextSearchCriteria criteria)
-        {
-            var texts = new List<Text>();
-            
-            try
-            {
-                var topics = new[] 
-                { 
-                    "الأطفال" /* الأَطفَال (al-aṭfāl) = "children" */, 
-                    "الأسرة"  /* الأُسْرة (al-usrah) = "family" */, 
-                    "الطعام"  /* الطَّعام (al-ṭaʿām) = "food" */ 
-                };
-                var topic = criteria.Topic ?? topics[Random.Shared.Next(topics.Length)];
-                
-                var url = $"https://ar.wikipedia.org/api/rest_v1/page/summary/{Uri.EscapeDataString(topic)}";
-                var response = await _httpClient.GetAsync(url);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var data = JsonDocument.Parse(json);
-                    var extract = data.RootElement.GetProperty("extract").GetString() ?? "";
-                    
-                    if (!string.IsNullOrEmpty(extract))
-                    {
-                        var simplified = string.Join(". ", extract.Split('.').Take(3)) + ".";
-                        
-                        texts.Add(new Text
-                        {
-                            Title = data.RootElement.GetProperty("title").GetString() ?? "بدون عنوان" /* بدون عنوان (bidūn ʿunwān) = "No title" */,
-                            Content = simplified,
-                            Language = LanguageCode,
-                            Difficulty = criteria.Difficulty,
-                            Metadata = new TextMetadata
-                            {
-                                Source = "Arabic Wikipedia (Beginner)",
-                                EstimatedWordCount = simplified.Split(' ').Length,
-                                SourceUrl = url
-                            }
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-            }
-            
-            return texts;
-        }
+        public bool SupportsDifficulty(DifficultyLevel level) => true;
         
-        private async Task<List<Text>> FetchIntermediateTexts(TextSearchCriteria criteria)
+        public async Task<List<string>> GetAvailableTopicsAsync()
         {
-            var texts = new List<Text>();
-            
-            try
-            {
-                var topic = criteria.Topic ?? "التكنولوجيا" /* التِّكنولوجيا (al-tiknūlūjyā) = "technology" */;
-                var url = $"https://ar.wikipedia.org/api/rest_v1/page/summary/{Uri.EscapeDataString(topic)}";
-                
-                var response = await _httpClient.GetAsync(url);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    var data = JsonDocument.Parse(json);
-                    var extract = data.RootElement.GetProperty("extract").GetString() ?? "";
-                    
-                    if (!string.IsNullOrEmpty(extract))
-                    {
-                        texts.Add(new Text
-                        {
-                            Title = data.RootElement.GetProperty("title").GetString() ?? "بدون عنوان" /* بدون عنوان (bidūn ʿunwān) = "No title" */,
-                            Content = extract,
-                            Language = LanguageCode,
-                            Difficulty = criteria.Difficulty,
-                            Metadata = new TextMetadata
-                            {
-                                Source = "Arabic Wikipedia",
-                                EstimatedWordCount = extract.Split(' ').Length,
-                                SourceUrl = url
-                            }
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-            }
-            
-            return texts;
-        }
-        
-        private async Task<List<Text>> FetchAdvancedTexts(TextSearchCriteria criteria)
-        {
-            return await FetchIntermediateTexts(criteria);
+            return await _topicStrategy.GenerateTopicsAsync(LanguageCode, DifficultyLevel.Intermediate, 10);
         }
     }
 }

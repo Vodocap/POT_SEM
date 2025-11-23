@@ -35,5 +35,6 @@ namespace POT_SEM.Core.Models
         public string? Topic { get; set; }
         public int MaxWordCount { get; set; } = int.MaxValue;
         public int MinWordCount { get; set; } = 0;
+        public int? MaxResults { get; set; }
     }
 }

@@ -23,24 +23,38 @@ namespace POT_SEM.Core.BridgeAbstractions
                 Difficulty = DifficultyLevel.Advanced,
                 Language = _languageSource.LanguageCode,
                 Topic = topic,
-                MinWordCount = 1000,
-                MaxWordCount = 5000
+                MinWordCount = 400,  // LOWERED - was 1000 (Wikipedia extracts rarely exceed 500)
+                MaxWordCount = 10000,
+                MaxResults = count
             };
         }
         
         protected override List<Text> ApplyDifficultyFilters(List<Text> texts)
         {
-            return texts.Where(t => t.Metadata.EstimatedWordCount >= 1000).ToList();
+            // REALISTIC - Wikipedia extracts are typically 200-800 words
+            // Accept anything with reasonable content
+            return texts
+                .Where(t => 
+                {
+                    var wordCount = t.Metadata.EstimatedWordCount;
+                    
+                    // Accept texts that are substantial (lowered threshold)
+                    return wordCount >= 300; // Much lower than 1000
+                })
+                .ToList();
         }
         
         protected override List<Text> ProcessTexts(List<Text> texts)
         {
             foreach (var text in texts)
             {
+                // For advanced, we want the full text
+                // Calculate reading time
                 text.Metadata.EstimatedReadingTimeMinutes = 
-                    (int)Math.Ceiling(text.Metadata.EstimatedWordCount / 200.0);
+                    Math.Max(2, (int)Math.Ceiling(text.Metadata.EstimatedWordCount / 200.0));
             }
             
+            // Order by word count (longest first for advanced)
             return texts.OrderByDescending(t => t.Metadata.EstimatedWordCount).ToList();
         }
         

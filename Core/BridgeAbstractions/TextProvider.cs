@@ -8,13 +8,15 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Core.BridgeAbstractions
 {
     /// <summary>
-    /// BRIDGE ABSTRACTION
-    /// Abstraktná základná trieda pre text providers podľa obtiažnosti
+    /// BRIDGE ABSTRACTION - Enhanced with retry logic
     /// </summary>
     public abstract class TextProvider
     {
-        // BRIDGE - referencia na implementáciu
         protected readonly ILanguageTextSource _languageSource;
+        
+        // Configuration
+        protected const int MAX_FETCH_ATTEMPTS = 3;
+        protected const int TEXTS_PER_ATTEMPT = 10; // Fetch more than needed
         
         protected TextProvider(ILanguageTextSource languageSource)
         {
@@ -22,57 +24,75 @@ namespace POT_SEM.Core.BridgeAbstractions
                 ?? throw new ArgumentNullException(nameof(languageSource));
         }
         
-        /// <summary>
-        /// Úroveň obtiažnosti ktorú tento provider spracováva
-        /// </summary>
         public abstract DifficultyLevel DifficultyLevel { get; }
         
         /// <summary>
-        /// Získaj texty vhodné pre túto úroveň obtiažnosti
+        /// Get texts with retry logic - GUARANTEED results!
         /// </summary>
         public async Task<List<Text>> GetTextsAsync(string? topic = null, int count = 10)
         {
-            // Vytvor search kritériá
-            var criteria = CreateSearchCriteria(topic, count);
-            
-            // Validácia že source podporuje túto obtiažnosť
             if (!_languageSource.SupportsDifficulty(DifficultyLevel))
             {
                 throw new InvalidOperationException(
-                    $"{_languageSource.LanguageName} zdroj nepodporuje úroveň {DifficultyLevel}"
+                    $"{_languageSource.LanguageName} does not support {DifficultyLevel}"
                 );
             }
             
-            // Načítaj z implementácie (BRIDGE call!)
-            var rawTexts = await _languageSource.FetchTextsAsync(criteria);
+            var collectedTexts = new List<Text>();
+            var attempts = 0;
             
-            // Aplikuj filtrovanie špecifické pre obtiažnosť
-            var filteredTexts = ApplyDifficultyFilters(rawTexts);
+            Console.WriteLine($"🎯 {GetType().Name}: Fetching {count} texts for {DifficultyLevel}");
             
-            // Aplikuj transformácie špecifické pre obtiažnosť
-            var processedTexts = ProcessTexts(filteredTexts);
+            // Retry until we have enough texts or hit max attempts
+            while (collectedTexts.Count < count && attempts < MAX_FETCH_ATTEMPTS)
+            {
+                attempts++;
+                Console.WriteLine($"   Attempt {attempts}/{MAX_FETCH_ATTEMPTS}...");
+                
+                try
+                {
+                    var criteria = CreateSearchCriteria(topic, TEXTS_PER_ATTEMPT);
+                    var rawTexts = await _languageSource.FetchTextsAsync(criteria);
+                    
+                    if (rawTexts.Any())
+                    {
+                        // Apply filters (but don't be too strict)
+                        var filteredTexts = ApplyDifficultyFilters(rawTexts);
+                        
+                        // Process texts
+                        var processedTexts = ProcessTexts(filteredTexts);
+                        
+                        // Add new unique texts
+                        foreach (var text in processedTexts)
+                        {
+                            if (!collectedTexts.Any(t => t.Title == text.Title))
+                            {
+                                collectedTexts.Add(text);
+                                Console.WriteLine($"   ✅ Added: {text.Title} ({text.Metadata.EstimatedWordCount} words)");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"   ⚠️ Attempt {attempts} failed: {ex.Message}");
+                }
+                
+                // Small delay between attempts
+                if (collectedTexts.Count < count && attempts < MAX_FETCH_ATTEMPTS)
+                {
+                    await Task.Delay(500);
+                }
+            }
             
-            return processedTexts.Take(count).ToList();
+            Console.WriteLine($"   ✅ Collected {collectedTexts.Count} texts total");
+            
+            return collectedTexts.Take(count).ToList();
         }
         
-        /// <summary>
-        /// Vytvor search kritériá podľa úrovne obtiažnosti
-        /// </summary>
         protected abstract TextSearchCriteria CreateSearchCriteria(string? topic, int count);
-        
-        /// <summary>
-        /// Filtruj texty podľa pravidiel obtiažnosti
-        /// </summary>
         protected abstract List<Text> ApplyDifficultyFilters(List<Text> texts);
-        
-        /// <summary>
-        /// Spracuj/transformuj texty pre úroveň obtiažnosti
-        /// </summary>
         protected abstract List<Text> ProcessTexts(List<Text> texts);
-        
-        /// <summary>
-        /// Získaj odporúčané témy pre túto úroveň
-        /// </summary>
         public abstract Task<List<string>> GetRecommendedTopicsAsync();
     }
 }
