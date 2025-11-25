@@ -3,9 +3,6 @@ using POT_SEM.Core.Models;
 
 namespace POT_SEM.Services.Database
 {
-    /// <summary>
-    /// Wrapper that auto-saves fetched texts to Supabase database
-    /// </summary>
     public class AutoSaveTextSourceWrapper : ILanguageTextSource
     {
         private readonly ILanguageTextSource _innerSource;
@@ -24,17 +21,16 @@ namespace POT_SEM.Services.Database
         
         public async Task<List<Text>> FetchTextsAsync(TextSearchCriteria criteria)
         {
-            // Fetch from original source (Wikipedia, etc.)
             var texts = await _innerSource.FetchTextsAsync(criteria);
             
-            // Save to database in background (fire and forget)
             if (texts.Any())
             {
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        await _storage.SaveTextsAsync(texts);
+                        // ✅ OPRAVENÉ: Pridaný LanguageCode parameter
+                        await _storage.SaveTextsAsync(texts, LanguageCode);
                     }
                     catch (Exception ex)
                     {

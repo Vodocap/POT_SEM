@@ -3,40 +3,33 @@ using POT_SEM.Core.Models;
 
 namespace POT_SEM.Services.Database
 {
-    /// <summary>
-    /// Service for storing texts to Supabase (auto-save from Wikipedia, etc.)
-    /// </summary>
     public class TextStorageService
     {
         private readonly Client _supabase;
-        private readonly HashSet<string> _processedKeys = new(); // Prevent duplicate saves in same session
+        private readonly HashSet<string> _processedKeys = new();
         
         public TextStorageService(Client supabase)
         {
             _supabase = supabase;
         }
         
-        /// <summary>
-        /// Save single text to database (prevents duplicates)
-        /// </summary>
-        public async Task<bool> SaveTextAsync(Text text)
+        // ✅ OPRAVENÉ: Použije text.Language ako languageCode
+        public async Task<bool> SaveTextAsync(Text text, string languageCode)
         {
             try
             {
-                // Create unique key for this text
-                var key = $"{text.LanguageCode}_{text.Title}";
+                var key = $"{languageCode}_{text.Title}";
                 
-                // Skip if already processed in this session
                 if (_processedKeys.Contains(key))
                 {
                     return false;
                 }
                 
-                // Check if exists in database
+                // Check if exists
                 var existing = await _supabase
                     .From<DatabaseText>()
-                    .Where(t => t.Title == text.Title)
-                    .Where(t => t.LanguageCode == text.LanguageCode)
+                    .Where(x => x.Title == text.Title)
+                    .Where(x => x.LanguageCode == languageCode)
                     .Limit(1)
                     .Get();
                 
@@ -47,21 +40,21 @@ namespace POT_SEM.Services.Database
                     return false;
                 }
                 
-                // Insert new text
+                // ✅ Mapovanie Text → DatabaseText
                 var dbText = new DatabaseText
                 {
-                    LanguageCode = text.LanguageCode,
+                    LanguageCode = languageCode,
                     Difficulty = text.Difficulty.ToString(),
                     Title = text.Title,
                     Content = text.Content,
-                    Topic = text.Topic,
-                    WordCount = text.WordCount
+                    Topic = text.Metadata.Topics.FirstOrDefault(),  // ✅ Prvý topic
+                    WordCount = text.Metadata.EstimatedWordCount    // ✅ Z Metadata
                 };
                 
                 await _supabase.From<DatabaseText>().Insert(dbText);
                 
                 _processedKeys.Add(key);
-                Console.WriteLine($"💾 Saved to Supabase: {text.Title} ({text.LanguageCode})");
+                Console.WriteLine($"💾 Saved to Supabase: {text.Title} ({languageCode})");
                 return true;
             }
             catch (Exception ex)
@@ -71,10 +64,7 @@ namespace POT_SEM.Services.Database
             }
         }
         
-        /// <summary>
-        /// Save multiple texts in batch
-        /// </summary>
-        public async Task<int> SaveTextsAsync(List<Text> texts)
+        public async Task<int> SaveTextsAsync(List<Text> texts, string languageCode)
         {
             if (!texts.Any())
             {
@@ -85,12 +75,11 @@ namespace POT_SEM.Services.Database
             
             foreach (var text in texts)
             {
-                if (await SaveTextAsync(text))
+                if (await SaveTextAsync(text, languageCode))
                 {
                     savedCount++;
                 }
                 
-                // Small delay to avoid rate limiting
                 await Task.Delay(50);
             }
             
@@ -102,9 +91,6 @@ namespace POT_SEM.Services.Database
             return savedCount;
         }
         
-        /// <summary>
-        /// Get database statistics
-        /// </summary>
         public async Task<DatabaseStats> GetStatsAsync()
         {
             try

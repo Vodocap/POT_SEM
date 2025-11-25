@@ -10,6 +10,7 @@ using POT_SEM.Services.RandomWordServices;
 using POT_SEM.Services.Caching;
 using POT_SEM.Services.Preloading;
 using POT_SEM.Services.Database;
+using POT_SEM.Services.Adapters;  // ✅ PRIDANÉ
 using Supabase;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -33,13 +34,11 @@ builder.Services.AddSingleton(provider =>
 {
     var options = new SupabaseOptions
     {
-        AutoConnectRealtime = false, // Disable for performance
+        AutoConnectRealtime = false,
         AutoRefreshToken = true
     };
     
     var client = new Client(supabaseConfig.Url, supabaseConfig.AnonKey, options);
-    
-    // Initialize synchronously (required for WASM)
     client.InitializeAsync().Wait();
     
     Console.WriteLine("✅ Supabase client initialized");
@@ -49,7 +48,7 @@ builder.Services.AddSingleton(provider =>
 // 💾 CACHE SERVICE
 builder.Services.AddSingleton<ITextCacheService, TextCacheService>();
 
-// 💿 STORAGE SERVICE (for auto-saving texts)
+// 💿 STORAGE SERVICE
 builder.Services.AddScoped<TextStorageService>();
 
 // 🎲 Random Word Services
@@ -58,6 +57,12 @@ builder.Services.AddScoped<FallbackWordService>();
 
 // 🎯 Topic Generation Strategy
 builder.Services.AddScoped<ITopicGenerationStrategy, ApiTopicStrategy>();
+
+// ✅ ADAPTER: IRandomWordService → ITopicGenerationStrategy
+builder.Services.AddScoped<ITopicGenerationStrategy>(sp =>
+    new RandomWordTopicAdapter(
+        sp.GetRequiredService<WikipediaRandomWordService>()
+    ));
 
 // 🌉 LANGUAGE TEXT SOURCES
 // Priority 1: Supabase (fast, cached)
@@ -76,11 +81,12 @@ builder.Services.AddScoped<ILanguageTextSource>(sp =>
     ));
 
 // Priority 2: Wikipedia sources WITH AUTO-SAVE
+// ✅ OPRAVENÉ: Použije RandomWordTopicAdapter
 builder.Services.AddScoped<ILanguageTextSource>(sp =>
     new AutoSaveTextSourceWrapper(
         new EnglishTextSource(
             sp.GetRequiredService<HttpClient>(),
-            sp.GetRequiredService<WikipediaRandomWordService>()
+            new RandomWordTopicAdapter(sp.GetRequiredService<WikipediaRandomWordService>())
         ),
         sp.GetRequiredService<TextStorageService>()
     ));
@@ -89,7 +95,7 @@ builder.Services.AddScoped<ILanguageTextSource>(sp =>
     new AutoSaveTextSourceWrapper(
         new SlovakTextSource(
             sp.GetRequiredService<HttpClient>(),
-            sp.GetRequiredService<WikipediaRandomWordService>()
+            new RandomWordTopicAdapter(sp.GetRequiredService<WikipediaRandomWordService>())
         ),
         sp.GetRequiredService<TextStorageService>()
     ));
@@ -98,7 +104,7 @@ builder.Services.AddScoped<ILanguageTextSource>(sp =>
     new AutoSaveTextSourceWrapper(
         new ArabicTextSource(
             sp.GetRequiredService<HttpClient>(),
-            sp.GetRequiredService<WikipediaRandomWordService>()
+            new RandomWordTopicAdapter(sp.GetRequiredService<WikipediaRandomWordService>())
         ),
         sp.GetRequiredService<TextStorageService>()
     ));
@@ -107,7 +113,7 @@ builder.Services.AddScoped<ILanguageTextSource>(sp =>
     new AutoSaveTextSourceWrapper(
         new JapaneseTextSource(
             sp.GetRequiredService<HttpClient>(),
-            sp.GetRequiredService<WikipediaRandomWordService>()
+            new RandomWordTopicAdapter(sp.GetRequiredService<WikipediaRandomWordService>())
         ),
         sp.GetRequiredService<TextStorageService>()
     ));
@@ -120,14 +126,14 @@ builder.Services.AddScoped<TextPreloadService>();
 
 var app = builder.Build();
 
-// 🔥 BACKGROUND PRELOAD (don't block startup)
+// 🔥 BACKGROUND PRELOAD
 Console.WriteLine("=== APPLICATION STARTING ===");
 
 _ = Task.Run(async () =>
 {
     try
     {
-        await Task.Delay(1000); // Give UI time to render
+        await Task.Delay(1000);
         
         using (var scope = app.Services.CreateScope())
         {

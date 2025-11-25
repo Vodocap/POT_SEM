@@ -14,8 +14,7 @@
     <Compile Remove="TextSources\ILanguageTextSource.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="supabase-csharp" Version="0.15.4" />
-    <PackageReference Include="Supabase.Realtime" Version="0.3.4" />
+    <PackageReference Include="supabase-csharp" Version="0.16.2" />
   </ItemGroup>
 
 </Project>

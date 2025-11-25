@@ -4,9 +4,6 @@ using POT_SEM.Core.Models;
 
 namespace POT_SEM.Services.Database
 {
-    /// <summary>
-    /// Text source that fetches from Supabase database
-    /// </summary>
     public class SupabaseTextSource : ILanguageTextSource
     {
         private readonly Client _supabase;
@@ -25,12 +22,14 @@ namespace POT_SEM.Services.Database
         {
             try
             {
+                var limit = criteria.MaxResults ?? 10;  // ✅ Použije MaxResults
+                
                 var query = _supabase
                     .From<DatabaseText>()
-                    .Where(t => t.LanguageCode == LanguageCode)
-                    .Where(t => t.Difficulty == criteria.Difficulty.ToString())
-                    .Order(t => t.CreatedAt, Supabase.Postgrest.Constants.Ordering.Descending)
-                    .Limit(criteria.Count);
+                    .Where(x => x.LanguageCode == LanguageCode)
+                    .Where(x => x.Difficulty == criteria.Difficulty.ToString())
+                    .Order("created_at", Postgrest.Constants.Ordering.Descending)
+                    .Limit(limit);
                 
                 var response = await query.Get();
                 
@@ -40,14 +39,24 @@ namespace POT_SEM.Services.Database
                     return new List<Text>();
                 }
                 
+                // ✅ OPRAVENÉ: Mapovanie DatabaseText → Text
                 var texts = response.Models.Select(dbText => new Text
                 {
+                    Id = dbText.Id.ToString(),
                     Title = dbText.Title,
                     Content = dbText.Content,
-                    LanguageCode = dbText.LanguageCode,
+                    Language = LanguageName,  // ✅ Meno jazyka (nie kód)
                     Difficulty = Enum.Parse<DifficultyLevel>(dbText.Difficulty),
-                    Topic = dbText.Topic,
-                    WordCount = dbText.WordCount
+                    Metadata = new TextMetadata
+                    {
+                        EstimatedWordCount = dbText.WordCount,
+                        Topics = string.IsNullOrEmpty(dbText.Topic) 
+                            ? new List<string>() 
+                            : new List<string> { dbText.Topic },
+                        Source = "Supabase",
+                        SourceUrl = null
+                    },
+                    FetchedAt = dbText.CreatedAt
                 }).ToList();
                 
                 Console.WriteLine($"✅ Fetched {texts.Count} texts from Supabase ({LanguageCode} - {criteria.Difficulty})");
@@ -68,15 +77,15 @@ namespace POT_SEM.Services.Database
             {
                 var response = await _supabase
                     .From<DatabaseText>()
-                    .Where(t => t.LanguageCode == LanguageCode)
+                    .Where(x => x.LanguageCode == LanguageCode)
                     .Select("topic")
                     .Get();
                 
                 return response?.Models
-                    .Where(t => !string.IsNullOrEmpty(t.Topic))
-                    .Select(t => t.Topic!)
+                    .Where(x => !string.IsNullOrEmpty(x.Topic))
+                    .Select(x => x.Topic!)
                     .Distinct()
-                    .OrderBy(t => t)
+                    .OrderBy(x => x)
                     .ToList() ?? new List<string>();
             }
             catch (Exception ex)

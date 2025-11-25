@@ -5,9 +5,4 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="supabase-csharp" Version="0.15.4" />
-    <PackageReference Include="Supabase.Realtime" Version="0.3.4" />
-  </ItemGroup>
-
 </Project>
