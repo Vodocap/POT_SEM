@@ -4,15 +4,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using POT_SEM.Core.Models;
 using POT_SEM.Core.Interfaces;
+using POT_SEM.Services;
+
 
 namespace POT_SEM.Core.BridgeAbstractions
 {
     public class IntermediateTextProvider : TextProvider
     {
-        public IntermediateTextProvider(ILanguageTextSource languageSource) 
-            : base(languageSource)
-        {
-        }
+        public IntermediateTextProvider(
+        ILanguageTextSource languageSource,
+        ITextCacheService? cache = null) 
+        : base(languageSource, cache)
+    {
+    }
         
         public override DifficultyLevel DifficultyLevel => DifficultyLevel.Intermediate;
         

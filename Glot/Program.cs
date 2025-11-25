@@ -3,7 +3,14 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Glot;
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Builders;
+using POT_SEM.Services;
 using POT_SEM.Services.TextSources;
+using POT_SEM.Services.TopicStrategies;
+using POT_SEM.Services.RandomWordServices;
+using POT_SEM.Services.Caching;
+using POT_SEM.Services.Preloading;
+using POT_SEM.Services.Database;
+using Supabase;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -11,48 +18,129 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient 
 { 
-    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) 
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
+    Timeout = TimeSpan.FromSeconds(30)
 });
 
-// Language Sources s debug výpismi
-Console.WriteLine("🔧 Registering language sources...");
+// 🔑 LOAD SUPABASE CONFIG
+Console.WriteLine("🔑 Loading Supabase configuration...");
+var http = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) };
+var supabaseConfig = await SupabaseConfig.LoadAsync(http);
+Console.WriteLine($"✅ Supabase URL: {supabaseConfig.Url}");
 
-builder.Services.AddScoped<ILanguageTextSource, EnglishTextSource>();
-Console.WriteLine("   ✅ EnglishTextSource registered");
+// 🔥 REGISTER SUPABASE CLIENT (Singleton)
+builder.Services.AddSingleton(provider =>
+{
+    var options = new SupabaseOptions
+    {
+        AutoConnectRealtime = false, // Disable for performance
+        AutoRefreshToken = true
+    };
+    
+    var client = new Client(supabaseConfig.Url, supabaseConfig.AnonKey, options);
+    
+    // Initialize synchronously (required for WASM)
+    client.InitializeAsync().Wait();
+    
+    Console.WriteLine("✅ Supabase client initialized");
+    return client;
+});
 
-builder.Services.AddScoped<ILanguageTextSource, ArabicTextSource>();
-Console.WriteLine("   ✅ ArabicTextSource registered");
+// 💾 CACHE SERVICE
+builder.Services.AddSingleton<ITextCacheService, TextCacheService>();
 
-builder.Services.AddScoped<ILanguageTextSource, SlovakTextSource>();
-Console.WriteLine("   ✅ SlovakTextSource registered");
-builder.Services.AddScoped<ILanguageTextSource, JapaneseTextSource>();
-Console.WriteLine("   ✅ JapaneseTextSource registered");
+// 💿 STORAGE SERVICE (for auto-saving texts)
+builder.Services.AddScoped<TextStorageService>();
 
-// Builder
+// 🎲 Random Word Services
+builder.Services.AddScoped<WikipediaRandomWordService>();
+builder.Services.AddScoped<FallbackWordService>();
+
+// 🎯 Topic Generation Strategy
+builder.Services.AddScoped<ITopicGenerationStrategy, ApiTopicStrategy>();
+
+// 🌉 LANGUAGE TEXT SOURCES
+// Priority 1: Supabase (fast, cached)
+builder.Services.AddScoped<ILanguageTextSource>(sp =>
+    new SupabaseTextSource(
+        sp.GetRequiredService<Client>(),
+        "en",
+        "English (Database)"
+    ));
+
+builder.Services.AddScoped<ILanguageTextSource>(sp =>
+    new SupabaseTextSource(
+        sp.GetRequiredService<Client>(),
+        "sk",
+        "Slovak (Database)"
+    ));
+
+// Priority 2: Wikipedia sources WITH AUTO-SAVE
+builder.Services.AddScoped<ILanguageTextSource>(sp =>
+    new AutoSaveTextSourceWrapper(
+        new EnglishTextSource(
+            sp.GetRequiredService<HttpClient>(),
+            sp.GetRequiredService<WikipediaRandomWordService>()
+        ),
+        sp.GetRequiredService<TextStorageService>()
+    ));
+
+builder.Services.AddScoped<ILanguageTextSource>(sp =>
+    new AutoSaveTextSourceWrapper(
+        new SlovakTextSource(
+            sp.GetRequiredService<HttpClient>(),
+            sp.GetRequiredService<WikipediaRandomWordService>()
+        ),
+        sp.GetRequiredService<TextStorageService>()
+    ));
+
+builder.Services.AddScoped<ILanguageTextSource>(sp =>
+    new AutoSaveTextSourceWrapper(
+        new ArabicTextSource(
+            sp.GetRequiredService<HttpClient>(),
+            sp.GetRequiredService<WikipediaRandomWordService>()
+        ),
+        sp.GetRequiredService<TextStorageService>()
+    ));
+
+builder.Services.AddScoped<ILanguageTextSource>(sp =>
+    new AutoSaveTextSourceWrapper(
+        new JapaneseTextSource(
+            sp.GetRequiredService<HttpClient>(),
+            sp.GetRequiredService<WikipediaRandomWordService>()
+        ),
+        sp.GetRequiredService<TextStorageService>()
+    ));
+
+// 🏗️ Text Provider Builder
 builder.Services.AddScoped<TextProviderBuilder>();
-Console.WriteLine("   ✅ TextProviderBuilder registered");
 
-Console.WriteLine("🚀 Starting application...");
+// 🚀 Preload Service
+builder.Services.AddScoped<TextPreloadService>();
 
 var app = builder.Build();
 
-// DEBUG: Otestuj DI po build
-using (var scope = app.Services.CreateScope())
+// 🔥 BACKGROUND PRELOAD (don't block startup)
+Console.WriteLine("=== APPLICATION STARTING ===");
+
+_ = Task.Run(async () =>
 {
-    var sources = scope.ServiceProvider.GetServices<ILanguageTextSource>();
-    var sourcesList = sources.ToList();
-    
-    Console.WriteLine($"🔍 DEBUG: Found {sourcesList.Count} language sources:");
-    
-    foreach (var source in sourcesList)
+    try
     {
-        Console.WriteLine($"   • {source.LanguageName} ({source.LanguageCode})");
+        await Task.Delay(1000); // Give UI time to render
+        
+        using (var scope = app.Services.CreateScope())
+        {
+            var preloadService = scope.ServiceProvider.GetRequiredService<TextPreloadService>();
+            await preloadService.PreloadAllAsync();
+        }
     }
-    
-    if (sourcesList.Count == 0)
+    catch (Exception ex)
     {
-        Console.WriteLine("❌ WARNING: No language sources found in DI!");
+        Console.WriteLine($"❌ Background preload failed: {ex.Message}");
     }
-}
+});
+
+Console.WriteLine("=== APPLICATION READY ===");
 
 await app.RunAsync();

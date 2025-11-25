@@ -1,6 +1,5 @@
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
-using POT_SEM.Core.Services;
 using POT_SEM.Services.RandomWordServices;
 
 namespace POT_SEM.Services.TopicStrategies

@@ -1,4 +1,4 @@
-using POT_SEM.Core.Services;
+using POT_SEM.Core.Interfaces;
 using System.Text.Json;
 
 namespace POT_SEM.Services.RandomWordServices

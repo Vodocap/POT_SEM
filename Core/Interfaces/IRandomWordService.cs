@@ -1,4 +1,4 @@
-namespace POT_SEM.Core.Services
+namespace POT_SEM.Core.Interfaces
 {
     public interface IRandomWordService
     {

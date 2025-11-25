@@ -4,15 +4,18 @@ using System.Linq;
 using System.Threading.Tasks;
 using POT_SEM.Core.Models;
 using POT_SEM.Core.Interfaces;
+using POT_SEM.Services;
 
 namespace POT_SEM.Core.BridgeAbstractions
 {
     public class BeginnerTextProvider : TextProvider
     {
-        public BeginnerTextProvider(ILanguageTextSource languageSource) 
-            : base(languageSource)
-        {
-        }
+        public BeginnerTextProvider(
+        ILanguageTextSource languageSource,
+        ITextCacheService? cache = null) 
+        : base(languageSource, cache)
+    {
+    }
         
         public override DifficultyLevel DifficultyLevel => DifficultyLevel.Beginner;
         

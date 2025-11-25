@@ -8,3 +8,5 @@
 /Tests/bin/
 /Tests/obj/
 .fake
+wwwroot/appsettings.Development.json
+!wwwroot/appsettings.json

@@ -1,4 +1,4 @@
-using POT_SEM.Core.Services;
+using POT_SEM.Core.Interfaces;
 
 namespace POT_SEM.Services.RandomWordServices
 {

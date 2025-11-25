@@ -4,33 +4,51 @@ using System.Linq;
 using System.Threading.Tasks;
 using POT_SEM.Core.Models;
 using POT_SEM.Core.Interfaces;
+using POT_SEM.Services;
 
 namespace POT_SEM.Core.BridgeAbstractions
 {
     /// <summary>
-    /// BRIDGE ABSTRACTION - Enhanced with retry logic
+    /// BRIDGE ABSTRACTION - Enhanced with caching
     /// </summary>
     public abstract class TextProvider
     {
         protected readonly ILanguageTextSource _languageSource;
+        private readonly ITextCacheService? _cache; // Optional cache
         
-        // Configuration
         protected const int MAX_FETCH_ATTEMPTS = 3;
-        protected const int TEXTS_PER_ATTEMPT = 10; // Fetch more than needed
+        protected const int TEXTS_PER_ATTEMPT = 10;
         
-        protected TextProvider(ILanguageTextSource languageSource)
+        protected TextProvider(
+            ILanguageTextSource languageSource,
+            ITextCacheService? cache = null)
         {
             _languageSource = languageSource 
                 ?? throw new ArgumentNullException(nameof(languageSource));
+            _cache = cache;
         }
         
         public abstract DifficultyLevel DifficultyLevel { get; }
         
         /// <summary>
-        /// Get texts with retry logic - GUARANTEED results!
+        /// Get texts - use cache if available!
         /// </summary>
         public async Task<List<Text>> GetTextsAsync(string? topic = null, int count = 10)
         {
+            // 1. Try cache first
+            if (_cache != null && string.IsNullOrEmpty(topic)) // Only use cache for non-topic requests
+            {
+                var cached = _cache.GetCachedTexts(_languageSource.LanguageCode, DifficultyLevel);
+                if (cached != null && cached.Any())
+                {
+                    Console.WriteLine($"💾 Using cached texts ({cached.Count} available)");
+                    return cached.Take(count).ToList();
+                }
+            }
+            
+            // 2. Cache miss - fetch fresh
+            Console.WriteLine($"🎯 {GetType().Name}: Fetching {count} texts for {DifficultyLevel}");
+            
             if (!_languageSource.SupportsDifficulty(DifficultyLevel))
             {
                 throw new InvalidOperationException(
@@ -41,9 +59,6 @@ namespace POT_SEM.Core.BridgeAbstractions
             var collectedTexts = new List<Text>();
             var attempts = 0;
             
-            Console.WriteLine($"🎯 {GetType().Name}: Fetching {count} texts for {DifficultyLevel}");
-            
-            // Retry until we have enough texts or hit max attempts
             while (collectedTexts.Count < count && attempts < MAX_FETCH_ATTEMPTS)
             {
                 attempts++;
@@ -56,13 +71,9 @@ namespace POT_SEM.Core.BridgeAbstractions
                     
                     if (rawTexts.Any())
                     {
-                        // Apply filters (but don't be too strict)
                         var filteredTexts = ApplyDifficultyFilters(rawTexts);
-                        
-                        // Process texts
                         var processedTexts = ProcessTexts(filteredTexts);
                         
-                        // Add new unique texts
                         foreach (var text in processedTexts)
                         {
                             if (!collectedTexts.Any(t => t.Title == text.Title))
@@ -78,7 +89,6 @@ namespace POT_SEM.Core.BridgeAbstractions
                     Console.WriteLine($"   ⚠️ Attempt {attempts} failed: {ex.Message}");
                 }
                 
-                // Small delay between attempts
                 if (collectedTexts.Count < count && attempts < MAX_FETCH_ATTEMPTS)
                 {
                     await Task.Delay(500);
@@ -86,6 +96,12 @@ namespace POT_SEM.Core.BridgeAbstractions
             }
             
             Console.WriteLine($"   ✅ Collected {collectedTexts.Count} texts total");
+            
+            // 3. Cache the results (if we fetched without topic)
+            if (_cache != null && string.IsNullOrEmpty(topic) && collectedTexts.Any())
+            {
+                _cache.CacheTexts(_languageSource.LanguageCode, DifficultyLevel, collectedTexts);
+            }
             
             return collectedTexts.Take(count).ToList();
         }
