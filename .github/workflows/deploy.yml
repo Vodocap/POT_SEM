@@ -36,13 +36,16 @@ jobs:
           echo "✅ Supabase credentials injected"
       
       - name: 📦 Restore dependencies
+        working-directory: ./Glot
         run: dotnet restore
       
       - name: 🏗️ Build project
+        working-directory: ./Glot
         run: dotnet build -c Release --no-restore
       
       - name: 🚀 Publish Blazor WASM
-        run: dotnet publish -c Release -o release --nologo
+        working-directory: ./Glot
+        run: dotnet publish -c Release -o ../release --nologo
       
       - name: 🔧 Fix base path for GitHub Pages
         run: |
