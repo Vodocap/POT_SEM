@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # ✅ PRIDANÉ: Povolí push do gh-pages
+  contents: write
 
 jobs:
   deploy:
@@ -30,16 +30,24 @@ jobs:
     - name: Publish
       run: dotnet publish Glot/Glot.csproj -c Release -o release --nologo
     
-    # ✅ Fix base path for GitHub Pages
+    - name: Create appsettings.json with Supabase secrets
+      run: |
+        cat > release/wwwroot/appsettings.json << EOF
+        {
+          "Supabase": {
+            "Url": "${{ secrets.SUPABASE_URL }}",
+            "AnonKey": "${{ secrets.SUPABASE_ANON_KEY }}"
+          }
+        }
+        EOF
+    
     - name: Change base-tag in index.html
       run: |
         sed -i 's/<base href="\/" \/>/<base href="\/POT_SEM\/" \/>/g' release/wwwroot/index.html
     
-    # ✅ Add .nojekyll to prevent Jekyll processing
     - name: Add .nojekyll file
       run: touch release/wwwroot/.nojekyll
     
-    # ✅ Copy index.html to 404.html for SPA routing
     - name: Copy index.html to 404.html
       run: cp release/wwwroot/index.html release/wwwroot/404.html
     
@@ -47,4 +55,4 @@ jobs:
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         folder: release/wwwroot
-        token: ${{ secrets.GITHUB_TOKEN }}  # ✅ Použije GITHUB_TOKEN s write permissions
+        token: ${{ secrets.GITHUB_TOKEN }}
