@@ -1,0 +1,60 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      
+      - name: 🔑 Inject Supabase credentials
+        run: |
+          cat > wwwroot/appsettings.json <<EOF
+          {
+            "Supabase": {
+              "Url": "${{ secrets.SUPABASE_URL }}",
+              "AnonKey": "${{ secrets.SUPABASE_ANON_KEY }}"
+            }
+          }
+          EOF
+          echo "✅ Supabase credentials injected"
+      
+      - name: 📦 Restore dependencies
+        run: dotnet restore
+      
+      - name: 🏗️ Build project
+        run: dotnet build -c Release --no-restore
+      
+      - name: 🚀 Publish Blazor WASM
+        run: dotnet publish -c Release -o release --nologo
+      
+      - name: 🔧 Fix base path for GitHub Pages
+        run: |
+          sed -i 's/<base href="\/" \/>/<base href="\/POT_SEM\/" \/>/g' release/wwwroot/index.html
+          echo "✅ Base path updated"
+      
+      - name: 📝 Add .nojekyll file
+        run: touch release/wwwroot/.nojekyll
+      
+      - name: 🌐 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: release/wwwroot
+          force_orphan: true
