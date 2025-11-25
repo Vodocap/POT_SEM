@@ -35,8 +35,7 @@ jobs:
           EOF
           echo "✅ Supabase credentials injected"
       
-      - name: 📦 Restore dependencies
-        working-directory: ./Glot
+      - name: 📦 Restore all dependencies
         run: dotnet restore
       
       - name: 🏗️ Build project
