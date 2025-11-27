@@ -66,9 +66,20 @@ if (supabaseClient != null)
     builder.Services.AddScoped<DatabaseTopicStrategy>();
 }
 
-// Default strategy: API-based with Wikipedia
-builder.Services.AddScoped<ITopicGenerationStrategy>(sp => 
-    sp.GetRequiredService<ApiTopicStrategy>());
+// ✅ DEFAULT STRATEGY: Database-first if available, otherwise API
+builder.Services.AddScoped<ITopicGenerationStrategy>(sp =>
+{
+    if (supabaseClient != null)
+    {
+        Console.WriteLine("🎯 Using DatabaseTopicStrategy as primary");
+        return sp.GetRequiredService<DatabaseTopicStrategy>();
+    }
+    else
+    {
+        Console.WriteLine("🎯 Using ApiTopicStrategy (no database)");
+        return sp.GetRequiredService<ApiTopicStrategy>();
+    }
+});
 
 // ========================================
 // TEXT STORAGE SERVICE (Database-dependent)
@@ -123,6 +134,6 @@ Console.WriteLine($"   - Supabase: {(supabaseClient != null ? "✅" : "❌")}");
 Console.WriteLine($"   - Text Storage: {(supabaseClient != null ? "✅" : "❌")}");
 Console.WriteLine($"   - Text Cache: ✅");
 Console.WriteLine($"   - Language Factory: ✅");
-Console.WriteLine($"   - Topic Strategy: ✅ (API-based)");
+Console.WriteLine($"   - Topic Strategy: {(supabaseClient != null ? "✅ Database-first" : "✅ API-based")}");
 
 await app.RunAsync();

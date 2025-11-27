@@ -22,31 +22,27 @@ namespace POT_SEM.Services.TextFetchStrategies
         {
             try
             {
+                Console.WriteLine($"💾 {SourceName}: Querying {criteria.Difficulty}...");
+
+                var difficultyStr = criteria.Difficulty.ToString();
                 var query = _supabase
                     .From<DatabaseText>()
                     .Where(x => x.LanguageCode == _languageCode)
-                    .Where(x => x.Difficulty == criteria.Difficulty.ToString());
-
-                if (!string.IsNullOrEmpty(criteria.Topic))
-                {
-                    query = query.Where(x => x.Title.Contains(criteria.Topic));
-                }
-
-                if (criteria.MinWordCount > 0)
-                {
-                    query = query.Where(x => x.WordCount >= criteria.MinWordCount);
-                }
-
-                if (criteria.MaxWordCount < int.MaxValue)
-                {
-                    query = query.Where(x => x.WordCount <= criteria.MaxWordCount);
-                }
+                    .Where(x => x.Difficulty == difficultyStr);
 
                 query = query.Limit(criteria.MaxResults ?? 10);
 
+                Console.WriteLine($"   🔍 Query: lang={_languageCode}, diff={criteria.Difficulty}, limit={criteria.MaxResults ?? 10}");
+                
                 var response = await query.Get();
 
-                return response.Models.Select(db => new Text
+                if (response?.Models == null || !response.Models.Any())
+                {
+                    Console.WriteLine($"   ⚠️ Database returned 0 results");
+                    return new List<Text>();
+                }
+
+                var texts = response.Models.Select(db => new Text
                 {
                     Title = db.Title,
                     Content = db.Content,
@@ -61,10 +57,23 @@ namespace POT_SEM.Services.TextFetchStrategies
                             : new List<string> { db.Topic }
                     }
                 }).ToList();
+
+                Console.WriteLine($"   ✅ Got {texts.Count} texts:");
+                foreach (var text in texts.Take(3))
+                {
+                    Console.WriteLine($"      • {text.Title} ({text.Metadata.EstimatedWordCount} words)");
+                }
+                if (texts.Count > 3)
+                {
+                    Console.WriteLine($"      ... and {texts.Count - 3} more");
+                }
+
+                return texts;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ {SourceName} error: {ex.Message}");
+                Console.WriteLine($"   Stack: {ex.StackTrace}");
                 return new List<Text>();
             }
         }

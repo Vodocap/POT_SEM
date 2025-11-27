@@ -29,13 +29,12 @@ namespace POT_SEM.Services.TopicStrategies
             {
                 Console.WriteLine($"💾 {StrategyName}: Querying database for {languageCode}/{difficulty}...");
                 
-                var difficultyStr = difficulty.ToString().ToLower();
-                var langCode = languageCode.ToLower();
+                var difficultyStr = difficulty.ToString();
                 
                 var response = await _supabase
                     .From<Database.DatabaseText>()
                     .Select("title")
-                    .Where(x => x.LanguageCode == langCode)
+                    .Where(x => x.LanguageCode == languageCode)
                     .Where(x => x.Difficulty == difficultyStr)
                     .Limit(count * 3) // Fetch more for variety
                     .Get();
@@ -54,7 +53,7 @@ namespace POT_SEM.Services.TopicStrategies
                     return topics;
                 }
                 
-                Console.WriteLine($"   ⚠️ Database empty, using static fallback...");
+                Console.WriteLine($"   ⚠️ Database empty for {languageCode}/{difficulty}, using static fallback...");
                 return await _fallback.GenerateTopicsAsync(languageCode, difficulty, count);
             }
             catch (Exception ex)

@@ -50,7 +50,6 @@ namespace POT_SEM.Services.TextSources
         {
             Console.WriteLine($"📚 [{LanguageName}] Fetching {criteria.MaxResults ?? 10} texts ({criteria.Difficulty})...");
 
-            // ✅ Select strategies based on difficulty level
             var strategies = GetStrategiesForDifficulty(criteria.Difficulty);
 
             if (!strategies.Any())
@@ -59,30 +58,8 @@ namespace POT_SEM.Services.TextSources
                 return new List<Text>();
             }
 
-            // Generate topics
-            List<string> topics;
-            
-            if (!string.IsNullOrEmpty(criteria.Topic))
-            {
-                topics = new List<string> { criteria.Topic };
-            }
-            else
-            {
-                topics = await _topicStrategy.GenerateTopicsAsync(
-                    LanguageCode, 
-                    criteria.Difficulty, 
-                    criteria.MaxResults ?? 10);
-            }
-
-            if (!topics.Any())
-            {
-                Console.WriteLine($"⚠️ No topics generated");
-                return new List<Text>();
-            }
-
             var allTexts = new List<Text>();
 
-            // ✅ Try each strategy in priority order
             foreach (var strategy in strategies)
             {
                 if (allTexts.Count >= (criteria.MaxResults ?? 10))
@@ -92,11 +69,57 @@ namespace POT_SEM.Services.TextSources
 
                 Console.WriteLine($"🔍 Trying {strategy.SourceName}...");
 
-                var strategyTexts = await FetchFromStrategy(strategy, topics, criteria);
+                List<Text> strategyTexts;
 
-                allTexts.AddRange(strategyTexts);
+                // Db: Fetch directly WITHOUT topics
+                if (strategy.SourceName.Contains("Database"))
+                {
+                    Console.WriteLine($"   💾 Fetching directly from database (no topics needed)");
+                    strategyTexts = await strategy.FetchTextsAsync(criteria);
+                }
+                // Other: Generate topics first
+                else
+                {
+                    List<string> topics;
+                    
+                    if (!string.IsNullOrEmpty(criteria.Topic))
+                    {
+                        topics = new List<string> { criteria.Topic };
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   🎲 Generating topics for {strategy.SourceName}...");
+                        topics = await _topicStrategy.GenerateTopicsAsync(
+                            LanguageCode, 
+                            criteria.Difficulty, 
+                            criteria.MaxResults ?? 10);
+                    }
 
-                Console.WriteLine($"  ✅ Got {strategyTexts.Count} texts from {strategy.SourceName}");
+                    if (!topics.Any())
+                    {
+                        Console.WriteLine($"   ⚠️ No topics generated, skipping {strategy.SourceName}");
+                        continue;
+                    }
+
+                    strategyTexts = await FetchFromStrategy(strategy, topics, criteria);
+                }
+
+                if (strategyTexts.Any())
+                {
+                    allTexts.AddRange(strategyTexts);
+                    Console.WriteLine($"   ✅ Got {strategyTexts.Count} texts from {strategy.SourceName}");
+                    
+                    // ✅ If we got enough texts, stop trying other strategies
+                    if (allTexts.Count >= (criteria.MaxResults ?? 10))
+                    {
+                        Console.WriteLine($"   ℹ️ Got enough texts ({allTexts.Count}), stopping");
+                        break;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"   ⚠️ {strategy.SourceName} returned 0 texts, trying next...");
+                }
             }
 
             Console.WriteLine($"✅ Total: {allTexts.Count} texts from [{LanguageName}]");
@@ -115,6 +138,10 @@ namespace POT_SEM.Services.TextSources
             {
                 var strategies = _difficultyStrategies[difficulty];
                 Console.WriteLine($"   Using {strategies.Count} difficulty-specific strategies for {difficulty}");
+                foreach (var s in strategies)
+                {
+                    Console.WriteLine($"      • {s.SourceName}");
+                }
                 return strategies;
             }
 
@@ -161,7 +188,7 @@ namespace POT_SEM.Services.TextSources
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  ⚠️ {topic} ({strategy.SourceName}): {ex.Message}");
+                Console.WriteLine($"      ⚠️ {topic}: {ex.Message}");
                 return null;
             }
         }
