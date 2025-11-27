@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using POT_SEM.Core.Models;
 using POT_SEM.Core.Interfaces;
-using POT_SEM.Services;
 
 namespace POT_SEM.Core.BridgeAbstractions
 {
@@ -14,7 +13,7 @@ namespace POT_SEM.Core.BridgeAbstractions
     public abstract class TextProvider
     {
         protected readonly ILanguageTextSource _languageSource;
-        private readonly ITextCacheService? _cache; // Optional cache
+        protected readonly ITextCacheService? _cache; // ✅ Changed to protected
         
         protected const int MAX_FETCH_ATTEMPTS = 3;
         protected const int TEXTS_PER_ATTEMPT = 10;
@@ -35,13 +34,13 @@ namespace POT_SEM.Core.BridgeAbstractions
         /// </summary>
         public async Task<List<Text>> GetTextsAsync(string? topic = null, int count = 10)
         {
-            // 1. Try cache first
-            if (_cache != null && string.IsNullOrEmpty(topic)) // Only use cache for non-topic requests
+            // 1. Try cache first (only for non-topic requests)
+            if (_cache != null && string.IsNullOrEmpty(topic))
             {
                 var cached = _cache.GetCachedTexts(_languageSource.LanguageCode, DifficultyLevel);
                 if (cached != null && cached.Any())
                 {
-                    Console.WriteLine($"💾 Using cached texts ({cached.Count} available)");
+                    Console.WriteLine($"💾 Cache HIT: {_languageSource.LanguageCode} - {DifficultyLevel} ({cached.Count} available)");
                     return cached.Take(count).ToList();
                 }
             }
@@ -79,14 +78,14 @@ namespace POT_SEM.Core.BridgeAbstractions
                             if (!collectedTexts.Any(t => t.Title == text.Title))
                             {
                                 collectedTexts.Add(text);
-                                Console.WriteLine($"   ✅ Added: {text.Title} ({text.Metadata.EstimatedWordCount} words)");
+                                Console.WriteLine($"      ✅ Added: {text.Title} ({text.Metadata.EstimatedWordCount} words)");
                             }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"   ⚠️ Attempt {attempts} failed: {ex.Message}");
+                    Console.WriteLine($"      ⚠️ Attempt {attempts} failed: {ex.Message}");
                 }
                 
                 if (collectedTexts.Count < count && attempts < MAX_FETCH_ATTEMPTS)

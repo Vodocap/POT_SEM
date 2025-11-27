@@ -1,13 +1,12 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using POT_SEM.Core.Interfaces;
-using POT_SEM.Core.Models;  
+using POT_SEM.Core.Models;
 
+// Core/Interfaces/ILanguageTextSource.cs
 namespace POT_SEM.Core.Interfaces
 {
     /// <summary>
     /// BRIDGE IMPLEMENTATION INTERFACE
     /// Reprezentuje zdroj textov v konkrétnom jazyku
+    /// Deleguje získavanie textov na ITextFetchStrategy
     /// </summary>
     public interface ILanguageTextSource
     {
