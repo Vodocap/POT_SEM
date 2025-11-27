@@ -6,55 +6,53 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-      
-      - name: 🔧 Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-      
-      - name: 🔑 Inject Supabase credentials
-        run: |
-          cat > Glot/wwwroot/appsettings.json <<EOF
-          {
-            "Supabase": {
-              "Url": "${{ secrets.SUPABASE_URL }}",
-              "AnonKey": "${{ secrets.SUPABASE_ANON_KEY }}"
-            }
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore Glot/Glot.csproj
+    
+    - name: Build
+      run: dotnet build Glot/Glot.csproj -c Release --no-restore
+    
+    - name: Publish
+      run: dotnet publish Glot/Glot.csproj -c Release -o release --nologo
+    
+    - name: Create appsettings.json with Supabase secrets
+      run: |
+        cat > release/wwwroot/appsettings.json << EOF
+        {
+          "Supabase": {
+            "Url": "${{ secrets.SUPABASE_URL }}",
+            "AnonKey": "${{ secrets.SUPABASE_ANON_KEY }}"
           }
-          EOF
-          echo "✅ Supabase credentials injected"
-      
-      - name: 📦 Restore dependencies
-        run: dotnet restore Glot/Glot.csproj
-      
-      - name: 🏗️ Build project
-        run: dotnet build Glot/Glot.csproj -c Release --no-restore
-      
-      - name: 🚀 Publish Blazor WASM
-        run: dotnet publish Glot/Glot.csproj -c Release -o release --nologo
-      
-      - name: 🔧 Fix base path for GitHub Pages
-        run: |
-          sed -i 's/<base href="\/" \/>/<base href="\/POT_SEM\/" \/>/g' release/wwwroot/index.html
-          echo "✅ Base path updated"
-      
-      - name: 📝 Add .nojekyll file
-        run: touch release/wwwroot/.nojekyll
-      
-      - name: 🌐 Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: release/wwwroot
-          force_orphan: true
+        }
+        EOF
+    
+    - name: Change base-tag in index.html
+      run: |
+        sed -i 's/<base href="\/" \/>/<base href="\/POT_SEM\/" \/>/g' release/wwwroot/index.html
+    
+    - name: Add .nojekyll file
+      run: touch release/wwwroot/.nojekyll
+    
+    - name: Copy index.html to 404.html
+      run: cp release/wwwroot/index.html release/wwwroot/404.html
+    
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: release/wwwroot
+        token: ${{ secrets.GITHUB_TOKEN }}
