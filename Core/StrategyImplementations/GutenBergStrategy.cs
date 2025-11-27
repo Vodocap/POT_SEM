@@ -10,7 +10,7 @@ namespace POT_SEM.Services.TextFetchStrategies
     public class GutenbergStrategy : ITextFetchStrategy
     {
         private readonly HttpClient _httpClient;
-        private const string GUTENBERG_API = "https://gutendex.com/books";
+        private const string GUTENBERG_API = "https://gutendex.com/books/";
 
         public GutenbergStrategy(HttpClient httpClient)
         {

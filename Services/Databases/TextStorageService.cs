@@ -13,7 +13,6 @@ namespace POT_SEM.Services.Database
             _supabase = supabase;
         }
         
-        // ✅ OPRAVENÉ: Použije text.Language ako languageCode
         public async Task<bool> SaveTextAsync(Text text, string languageCode)
         {
             try
@@ -22,6 +21,7 @@ namespace POT_SEM.Services.Database
                 
                 if (_processedKeys.Contains(key))
                 {
+                    Console.WriteLine($"⏭️ Already processed: {text.Title}");
                     return false;
                 }
                 
@@ -40,26 +40,37 @@ namespace POT_SEM.Services.Database
                     return false;
                 }
                 
-                // ✅ Mapovanie Text → DatabaseText
                 var dbText = new DatabaseText
                 {
                     LanguageCode = languageCode,
                     Difficulty = text.Difficulty.ToString(),
                     Title = text.Title,
                     Content = text.Content,
-                    Topic = text.Metadata.Topics.FirstOrDefault(),  // ✅ Prvý topic
-                    WordCount = text.Metadata.EstimatedWordCount    // ✅ Z Metadata
+                    Topic = text.Metadata.Topics.FirstOrDefault(),
+                    WordCount = text.Metadata.EstimatedWordCount,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow  
                 };
                 
-                await _supabase.From<DatabaseText>().Insert(dbText);
+                var response = await _supabase
+                    .From<DatabaseText>()
+                    .Insert(dbText);
+                
+                // ✅ Check response
+                if (response?.Models?.Any() != true)
+                {
+                    Console.WriteLine($"⚠️ Insert returned empty response for: {text.Title}");
+                    return false;
+                }
                 
                 _processedKeys.Add(key);
-                Console.WriteLine($"💾 Saved to Supabase: {text.Title} ({languageCode})");
+                Console.WriteLine($"💾 Saved to Supabase: {text.Title} ({languageCode}) - ID: {response.Models.First().Id}");
                 return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ Save failed for '{text.Title}': {ex.Message}");
+                Console.WriteLine($"   Stack: {ex.StackTrace}");
                 return false;
             }
         }
@@ -68,8 +79,11 @@ namespace POT_SEM.Services.Database
         {
             if (!texts.Any())
             {
+                Console.WriteLine("⚠️ SaveTextsAsync: No texts to save");
                 return 0;
             }
+            
+            Console.WriteLine($"📝 Starting batch save: {texts.Count} texts for {languageCode}");
             
             int savedCount = 0;
             
@@ -85,7 +99,11 @@ namespace POT_SEM.Services.Database
             
             if (savedCount > 0)
             {
-                Console.WriteLine($"✅ Batch save: {savedCount}/{texts.Count} new texts saved");
+                Console.WriteLine($"✅ Batch save complete: {savedCount}/{texts.Count} new texts saved to Supabase");
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ Batch save: 0/{texts.Count} saved (all duplicates or errors)");
             }
             
             return savedCount;

@@ -71,24 +71,33 @@ builder.Services.AddScoped<ITopicGenerationStrategy>(sp =>
     sp.GetRequiredService<ApiTopicStrategy>());
 
 // ========================================
+// TEXT STORAGE SERVICE (Database-dependent)
+// ✅ Must be registered BEFORE LanguageSourceFactory
+// ========================================
+if (supabaseClient != null)
+{
+    builder.Services.AddScoped<TextStorageService>();
+}
+
+// ========================================
 // LANGUAGE SOURCE FACTORY
 // Factory + Template Method Pattern
+// ✅ Now with auto-save support
 // ========================================
-builder.Services.AddScoped<LanguageSourceFactory>();
+builder.Services.AddScoped<LanguageSourceFactory>(sp =>
+{
+    var http = sp.GetRequiredService<HttpClient>();
+    var supabase = sp.GetService<Client>(); // Optional
+    var storageService = sp.GetService<TextStorageService>(); // Optional
+    
+    return new LanguageSourceFactory(http, supabase, storageService);
+});
 
 // ========================================
 // TEXT CACHE SERVICE
 // Singleton - Shared cache across application
 // ========================================
 builder.Services.AddSingleton<ITextCacheService, TextCacheService>();
-
-// ========================================
-// TEXT STORAGE SERVICE (Database-dependent)
-// ========================================
-if (supabaseClient != null)
-{
-    builder.Services.AddScoped<TextStorageService>();
-}
 
 // ========================================
 // TEXT PROVIDER BUILDER
@@ -111,6 +120,7 @@ var app = builder.Build();
 Console.WriteLine("🚀 Application initialized");
 Console.WriteLine($"📦 Services registered:");
 Console.WriteLine($"   - Supabase: {(supabaseClient != null ? "✅" : "❌")}");
+Console.WriteLine($"   - Text Storage: {(supabaseClient != null ? "✅" : "❌")}");
 Console.WriteLine($"   - Text Cache: ✅");
 Console.WriteLine($"   - Language Factory: ✅");
 Console.WriteLine($"   - Topic Strategy: ✅ (API-based)");

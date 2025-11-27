@@ -2,6 +2,8 @@ using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 using POT_SEM.Services.TextSources;
 using POT_SEM.Services.TextFetchStrategies;
+using POT_SEM.Services.Decorators;
+using POT_SEM.Services.Database;
 using Supabase;
 
 namespace POT_SEM.Services.Factories
@@ -9,16 +11,22 @@ namespace POT_SEM.Services.Factories
     /// <summary>
     /// FACTORY + TEMPLATE METHOD PATTERN
     /// Eliminates code duplication by using a configuration-based approach
+    /// Now wraps sources with AutoSave decorator when database is available
     /// </summary>
     public class LanguageSourceFactory
     {
         private readonly HttpClient _httpClient;
         private readonly Client? _supabase;
+        private readonly TextStorageService? _storageService;
 
-        public LanguageSourceFactory(HttpClient httpClient, Client? supabase = null)
+        public LanguageSourceFactory(
+            HttpClient httpClient, 
+            Client? supabase = null,
+            TextStorageService? storageService = null)
         {
             _httpClient = httpClient;
             _supabase = supabase;
+            _storageService = storageService;
         }
 
         /// <summary>
@@ -90,6 +98,7 @@ namespace POT_SEM.Services.Factories
 
         /// <summary>
         /// TEMPLATE METHOD - Creates language source based on configuration
+        /// ✅ Now wraps result with AutoSave decorator
         /// </summary>
         private ILanguageTextSource CreateLanguageSource(
             LanguageConfig config,
@@ -121,13 +130,22 @@ namespace POT_SEM.Services.Factories
                 defaultStrategies.Insert(0, new DatabaseTextFetchStrategy(_supabase, config.LanguageCode));
             }
 
-            return new CompositeLanguageTextSource(
+            // ✅ Create base composite source
+            var baseSource = new CompositeLanguageTextSource(
                 config.LanguageCode,
                 config.LanguageName,
                 topicStrategy,
                 strategyMap.Count > 0 ? strategyMap : null,
                 defaultStrategies
             );
+
+            // ✅ Wrap with AutoSave decorator if storage service is available
+            if (_storageService != null)
+            {
+                return new AutoSaveTextSourceWrapper(baseSource, _storageService);
+            }
+
+            return baseSource;
         }
 
         /// <summary>
