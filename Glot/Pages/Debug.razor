@@ -1,7 +1,8 @@
 @page "/debug"
 @using POT_SEM.Core.Models
-@using POT_SEM.Core.Builders
+@using POT_SEM.Core.BridgeAbstractions
 @using POT_SEM.Core.Interfaces
+@using POT_SEM.Services.Builders
 @using System.Text.Json
 @inject TextProviderBuilder Builder
 @inject IServiceProvider ServiceProvider
@@ -19,9 +20,8 @@
                 <label><strong>Language:</strong></label>
                 <select @bind="selectedLanguage" class="form-select">
                     <option value="en">🇬🇧 English</option>
-                    <option value="ar">🇸🇦 Arabic (العربية)</option>
                     <option value="sk">🇸🇰 Slovak (Slovenčina)</option>
-                    <option value="ru">🇷🇺 Russian (Русский)</option>
+                    <option value="ar">🇸🇦 Arabic (العربية)</option>
                     <option value="ja">🇯🇵 Japanese (日本語)</option>
                 </select>
             </div>
@@ -58,8 +58,8 @@
                 }
             </button>
             
-            <button @onclick="ShowAvailableSources" class="btn btn-info" disabled="@isLoading">
-                📚 Show Available Sources
+            <button @onclick="ShowSupportedLanguages" class="btn btn-info" disabled="@isLoading">
+                🌍 Show Supported Languages
             </button>
             
             <button @onclick="ClearLogs" class="btn btn-secondary">
@@ -160,34 +160,17 @@
         </div>
     }
     
-    @if (availableSources != null && availableSources.Any())
+    @if (supportedLanguages != null && supportedLanguages.Any())
     {
         <div class="info-panel">
-            <h3>📚 Available Language Sources</h3>
-            <div class="sources-grid">
-                @foreach (var source in availableSources)
+            <h3>🌍 Supported Languages</h3>
+            <div class="languages-grid">
+                @foreach (var (langCode, name) in supportedLanguages)
                 {
-                    <div class="source-card">
-                        <div class="source-header">
-                            <strong>@source.LanguageName</strong>
-                            <code>@source.LanguageCode</code>
-                        </div>
-                        <div class="source-body">
-                            <p><strong>Supported Difficulties:</strong></p>
-                            <div class="difficulty-badges">
-                                @if (source.SupportsDifficulty(DifficultyLevel.Beginner))
-                                {
-                                    <span class="badge bg-success">Beginner</span>
-                                }
-                                @if (source.SupportsDifficulty(DifficultyLevel.Intermediate))
-                                {
-                                    <span class="badge bg-warning text-dark">Intermediate</span>
-                                }
-                                @if (source.SupportsDifficulty(DifficultyLevel.Advanced))
-                                {
-                                    <span class="badge bg-danger">Advanced</span>
-                                }
-                            </div>
+                    <div class="language-card">
+                        <div class="language-header">
+                            <strong>@name</strong>
+                            <code>@langCode</code>
                         </div>
                     </div>
                 }
@@ -211,9 +194,9 @@
     private int count = 3;
     
     private bool isLoading = false;
-    private POT_SEM.Core.BridgeAbstractions.TextProvider? provider;
+    private TextProvider? provider;
     private List<Text>? texts;
-    private List<ILanguageTextSource>? availableSources;
+    private Dictionary<string, string>? supportedLanguages;
     private string? languageSourceInfo;
     private string? errorMessage;
     
@@ -224,12 +207,13 @@
     {
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public string Message { get; set; } = "";
-        public string Type { get; set; } = "info"; // info, success, warning, error
+        public string Type { get; set; } = "info";
     }
     
     protected override void OnInitialized()
     {
         AddLog("🎯 Debug Console initialized", "info");
+        AddLog($"   Available patterns: Bridge, Builder, Strategy, Factory", "info");
     }
     
     private async Task TestBuilder()
@@ -245,10 +229,11 @@
             AddLog($"🚀 Starting test: {selectedLanguage.ToUpper()} - {selectedDifficulty}", "info");
             AddLog($"   Topic: {topic ?? "(random)"}, Count: {count}", "info");
             
-            // STEP 1: Build Provider
-            AddLog("📦 STEP 1: Building TextProvider...", "info");
-            AddLog($"   → Calling Builder.ForLanguage(\"{selectedLanguage}\")", "info");
-            AddLog($"   → Calling Builder.ForDifficulty({selectedDifficulty})", "info");
+            AddLog("", "info");
+            AddLog("📦 STEP 1: Building TextProvider using BUILDER PATTERN...", "info");
+            AddLog($"   → Builder.ForLanguage(\"{selectedLanguage}\")", "info");
+            AddLog($"   → Builder.ForDifficulty({selectedDifficulty})", "info");
+            AddLog($"   → Builder.Build()", "info");
             
             provider = Builder
                 .ForLanguage(selectedLanguage)
@@ -257,7 +242,6 @@
             
             AddLog($"✅ Provider created: {provider.GetType().Name}", "success");
             
-            // Get language source info via reflection
             var field = provider.GetType().BaseType?.GetField("_languageSource", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             
@@ -268,13 +252,13 @@
                 {
                     languageSourceInfo = $"{source.LanguageName} ({source.LanguageCode})";
                     AddLog($"   → Language Source: {languageSourceInfo}", "success");
+                    AddLog($"   → Using BRIDGE PATTERN to delegate to language-specific source", "info");
                 }
             }
             
-            // STEP 2: Fetch Texts
             AddLog("", "info");
-            AddLog("📥 STEP 2: Fetching texts...", "info");
-            AddLog($"   → Calling provider.GetTextsAsync(topic: \"{topic}\", count: {count})", "info");
+            AddLog("📥 STEP 2: Fetching texts using STRATEGY PATTERN...", "info");
+            AddLog($"   → provider.GetTextsAsync(topic: \"{topic ?? "null"}\", count: {count})", "info");
             
             texts = await provider.GetTextsAsync(topic, count);
             
@@ -285,9 +269,9 @@
                 foreach (var (text, index) in texts.Select((t, i) => (t, i)))
                 {
                     AddLog($"   [{index + 1}] {text.Title}", "info");
-                    AddLog($"       Source: {text.Metadata.Source}", "info");
+                    AddLog($"       Source: {text.Metadata.Source} (STRATEGY)", "info");
                     AddLog($"       Words: {text.Metadata.EstimatedWordCount}", "info");
-                    AddLog($"       Language: {text.Language}", "info");
+                    AddLog($"       Difficulty: {text.Difficulty}", "info");
                 }
             }
             else
@@ -297,12 +281,16 @@
             
             AddLog("", "info");
             AddLog("✅ Test completed successfully!", "success");
+            AddLog("   Patterns used: BRIDGE + BUILDER + STRATEGY + FACTORY", "success");
         }
         catch (Exception ex)
         {
             errorMessage = ex.ToString();
             AddLog($"❌ ERROR: {ex.Message}", "error");
-            AddLog($"   Stack: {ex.StackTrace}", "error");
+            if (ex.InnerException != null)
+            {
+                AddLog($"   Inner: {ex.InnerException.Message}", "error");
+            }
         }
         finally
         {
@@ -310,24 +298,17 @@
         }
     }
     
-    private async Task ShowAvailableSources()
+    private void ShowSupportedLanguages()
     {
-        AddLog("📚 Loading available language sources...", "info");
+        AddLog("🌍 Loading supported languages...", "info");
         
-        availableSources = ServiceProvider.GetServices<ILanguageTextSource>().ToList();
+        supportedLanguages = TextProviderBuilder.GetSupportedLanguages();
         
-        AddLog($"✅ Found {availableSources.Count} language source(s):", "success");
+        AddLog($"✅ Found {supportedLanguages.Count} supported language(s):", "success");
         
-        foreach (var source in availableSources)
+        foreach (var (langCode, name) in supportedLanguages)
         {
-            AddLog($"   • {source.LanguageName} ({source.LanguageCode})", "info");
-            
-            var difficulties = new List<string>();
-            if (source.SupportsDifficulty(DifficultyLevel.Beginner)) difficulties.Add("Beginner");
-            if (source.SupportsDifficulty(DifficultyLevel.Intermediate)) difficulties.Add("Intermediate");
-            if (source.SupportsDifficulty(DifficultyLevel.Advanced)) difficulties.Add("Advanced");
-            
-            AddLog($"     Supports: {string.Join(", ", difficulties)}", "info");
+            AddLog($"   • {name} ({langCode})", "info");
         }
     }
     
@@ -356,8 +337,8 @@
     
     private string GetPreview(string content, int maxWords)
     {
-        var words = content.Split(' ').Take(maxWords);
-        return string.Join(" ", words) + (content.Split(' ').Length > maxWords ? "..." : "");
+        var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(maxWords);
+        return string.Join(" ", words) + (content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > maxWords ? "..." : "");
     }
     
     private double CalculateAvgSentenceLength(string content)
@@ -389,7 +370,6 @@
         margin-top: 0;
     }
     
-    /* Test Panel */
     .test-panel {
         background: white;
         border: 2px solid #3498db;
@@ -479,7 +459,6 @@
         background: #7f8c8d;
     }
     
-    /* Log Panel */
     .log-panel {
         background: #2c3e50;
         border-radius: 8px;
@@ -532,7 +511,6 @@
         margin-right: 0.5rem;
     }
     
-    /* Info Panel */
     .info-panel {
         background: white;
         border-left: 4px solid #3498db;
@@ -569,7 +547,6 @@
         margin-top: 1rem;
     }
     
-    /* Results Panel */
     .results-panel {
         margin-bottom: 2rem;
     }
@@ -700,6 +677,8 @@
         background: white;
         color: #3498db;
         border: 2px solid #3498db;
+        text-decoration: none;
+        display: inline-block;
     }
     
     .btn-outline-primary:hover {
@@ -707,46 +686,30 @@
         color: white;
     }
     
-    /* Sources Grid */
-    .sources-grid {
+    .languages-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
         gap: 1rem;
         margin-top: 1rem;
     }
     
-    .source-card {
+    .language-card {
         background: #f8f9fa;
         border: 1px solid #ddd;
         border-radius: 4px;
         padding: 1rem;
     }
     
-    .source-header {
+    .language-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #ddd;
     }
     
-    .source-header code {
+    .language-header code {
         background: #e8eaf6;
         padding: 0.2rem 0.5rem;
         border-radius: 3px;
         font-size: 0.85rem;
-    }
-    
-    .source-body p {
-        margin: 0 0 0.5rem 0;
-        font-size: 0.9rem;
-        color: #555;
-    }
-    
-    .difficulty-badges {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
     }
 </style>

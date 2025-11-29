@@ -1,9 +1,10 @@
 @page "/texts"
 @using POT_SEM.Core.Models
-@using POT_SEM.Core.Builders
+@using POT_SEM.Core.BridgeAbstractions
+@using POT_SEM.Services.Builders
 @inject TextProviderBuilder Builder
 
-<PageTitle>Multilingual Text Browser</PageTitle>
+<PageTitle>🌍 Multilingual Text Browser</PageTitle>
 
 <h3>🌍 Language Learning Texts</h3>
 
@@ -12,9 +13,8 @@
         <label>Language:</label>
         <select @bind="selectedLanguage" class="form-select">
             <option value="en">🇬🇧 English</option>
-            <option value="ar">🇸🇦 Arabic (العربية)</option>
             <option value="sk">🇸🇰 Slovak (Slovenčina)</option>
-            <option value="ru">🇷🇺 Russian (Русский)</option>
+            <option value="ar">🇸🇦 Arabic (العربية)</option>
             <option value="ja">🇯🇵 Japanese (日本語)</option>
         </select>
     </div>
@@ -26,6 +26,16 @@
             <option value="@DifficultyLevel.Intermediate">🌿 Intermediate</option>
             <option value="@DifficultyLevel.Advanced">🌲 Advanced</option>
         </select>
+    </div>
+    
+    <div class="form-group">
+        <label>Topic (optional):</label>
+        <input type="text" @bind="topic" class="form-control" placeholder="Leave empty for random" />
+    </div>
+    
+    <div class="form-group">
+        <label>Count:</label>
+        <input type="number" @bind="count" class="form-control" min="1" max="10" />
     </div>
     
     <button @onclick="LoadTexts" class="btn btn-primary" disabled="@isLoading">
@@ -42,15 +52,17 @@
 
 @if (errorMessage != null)
 {
-    <div class="alert alert-danger">❌ @errorMessage</div>
+    <div class="alert alert-danger">
+        <strong>❌ Error:</strong> @errorMessage
+    </div>
 }
 
 @if (texts != null && texts.Any())
 {
     <div class="texts">
         <p class="info">
-            ✅ Found <strong>@texts.Count</strong> texts 
-            (@selectedLanguage - @selectedDifficulty)
+            ✅ Found <strong>@texts.Count</strong> text(s) 
+            (@GetLanguageName(selectedLanguage) - @selectedDifficulty)
         </p>
         
         @foreach (var text in texts)
@@ -64,17 +76,30 @@
                     <span class="badge bg-success">@text.Metadata.Source</span>
                 </div>
                 <p class="excerpt">@GetExcerpt(text.Content)</p>
-                <a href="@text.Metadata.SourceUrl" target="_blank" class="btn btn-sm btn-outline-primary">
-                    Read source →
-                </a>
+                
+                @if (!string.IsNullOrEmpty(text.Metadata.SourceUrl))
+                {
+                    <a href="@text.Metadata.SourceUrl" target="_blank" class="btn btn-sm btn-outline-primary">
+                        📖 Read source →
+                    </a>
+                }
             </div>
         }
+    </div>
+}
+else if (!isLoading && texts == null)
+{
+    <div class="alert alert-info">
+        ℹ️ Select language and difficulty, then click "Load Texts"
     </div>
 }
 
 @code {
     private string selectedLanguage = "en";
     private DifficultyLevel selectedDifficulty = DifficultyLevel.Beginner;
+    private string? topic;
+    private int count = 5;
+    
     private bool isLoading = false;
     private string? errorMessage = null;
     private List<POT_SEM.Core.Models.Text>? texts;
@@ -87,15 +112,17 @@
         
         try
         {
-            // 🔥 POUŽITIE BUILDER + BRIDGE + STRATEGY!
+            Console.WriteLine($"🔍 Loading {count} {selectedDifficulty} texts in {selectedLanguage}...");
+            
+            // 🔥 BRIDGE + BUILDER + STRATEGY PATTERN!
             var provider = Builder
                 .ForLanguage(selectedLanguage)
                 .ForDifficulty(selectedDifficulty)
                 .Build();
             
-            texts = await provider.GetTextsAsync(topic: null, count: 5);
+            texts = await provider.GetTextsAsync(topic: topic, count: count);
             
-            Console.WriteLine($"✅ Loaded {texts.Count} {selectedDifficulty} texts in {selectedLanguage}");
+            Console.WriteLine($"✅ Loaded {texts.Count} texts");
         }
         catch (Exception ex)
         {
@@ -110,8 +137,13 @@
     
     private string GetExcerpt(string content)
     {
-        var words = content.Split(' ').Take(40);
+        var words = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(40);
         return string.Join(" ", words) + "...";
+    }
+    
+    private string GetLanguageName(string code)
+    {
+        return TextProviderBuilder.GetLanguageName(code);
     }
 }
 
@@ -131,17 +163,67 @@
         min-width: 200px;
     }
     
-    .form-select {
+    .form-select, .form-control {
         padding: 0.5rem;
         border: 1px solid #ddd;
         border-radius: 4px;
     }
     
-    .info {
-        background: #f0f8ff;
+    .form-select:focus, .form-control:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+        background: #2980b9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .alert {
         padding: 1rem;
         border-radius: 4px;
         margin-bottom: 1rem;
+    }
+    
+    .alert-danger {
+        background: #fadbd8;
+        border-left: 4px solid #e74c3c;
+        color: #c0392b;
+    }
+    
+    .alert-info {
+        background: #d6eaf8;
+        border-left: 4px solid #3498db;
+        color: #21618c;
+    }
+    
+    .info {
+        background: #d5f4e6;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #2ecc71;
     }
     
     .texts {
@@ -156,11 +238,17 @@
         border-radius: 8px;
         background: white;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .text-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     .text-card h4 {
         margin: 0 0 0.5rem 0;
-        color: #333;
+        color: #2c3e50;
     }
     
     .meta {
@@ -171,19 +259,39 @@
     }
     
     .excerpt {
-        color: #666;
+        color: #555;
         line-height: 1.6;
         margin-bottom: 1rem;
     }
     
     .badge {
-        padding: 0.25rem 0.5rem;
+        padding: 0.35rem 0.65rem;
         border-radius: 4px;
         font-size: 0.875rem;
+        font-weight: 600;
     }
     
-    .bg-info { background-color: #17a2b8; color: white; }
-    .bg-secondary { background-color: #6c757d; color: white; }
-    .bg-light { background-color: #f8f9fa; }
-    .bg-success { background-color: #28a745; color: white; }
+    .bg-info { background-color: #1abc9c; color: white; }
+    .bg-secondary { background-color: #95a5a6; color: white; }
+    .bg-light { background-color: #ecf0f1; }
+    .bg-success { background-color: #2ecc71; color: white; }
+    .text-dark { color: #2c3e50; }
+    
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .btn-outline-primary {
+        background: white;
+        color: #3498db;
+        border: 2px solid #3498db;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-outline-primary:hover {
+        background: #3498db;
+        color: white;
+    }
 </style>
