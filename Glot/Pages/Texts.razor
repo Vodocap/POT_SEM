@@ -3,6 +3,7 @@
 @using POT_SEM.Core.BridgeAbstractions
 @using POT_SEM.Services.Builders
 @inject TextProviderBuilder Builder
+@inject NavigationManager Navigation
 
 <PageTitle>🌍 Multilingual Text Browser</PageTitle>
 
@@ -16,6 +17,14 @@
             <option value="sk">🇸🇰 Slovak (Slovenčina)</option>
             <option value="ar">🇸🇦 Arabic (العربية)</option>
             <option value="ja">🇯🇵 Japanese (日本語)</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label>Target Language (for translation):</label>
+        <select @bind="targetLanguage" class="form-select">
+            <option value="en">🇬🇧 English</option>
+            <option value="sk">🇸🇰 Slovak</option>
         </select>
     </div>
     
@@ -77,12 +86,19 @@
                 </div>
                 <p class="excerpt">@GetExcerpt(text.Content)</p>
                 
-                @if (!string.IsNullOrEmpty(text.Metadata.SourceUrl))
-                {
-                    <a href="@text.Metadata.SourceUrl" target="_blank" class="btn btn-sm btn-outline-primary">
-                        📖 Read source →
-                    </a>
-                }
+                <div class="actions">
+                    @if (!string.IsNullOrEmpty(text.Metadata.SourceUrl))
+                    {
+                        <a href="@text.Metadata.SourceUrl" target="_blank" class="btn btn-sm btn-outline-primary">
+                            📖 Read source →
+                        </a>
+                    }
+                    
+                    <!-- 🔥 NEW: Read with translation button -->
+                    <button @onclick="() => NavigateToReading(text)" class="btn btn-sm btn-success">
+                        🌐 Read with translation →
+                    </button>
+                </div>
             </div>
         }
     </div>
@@ -96,6 +112,7 @@ else if (!isLoading && texts == null)
 
 @code {
     private string selectedLanguage = "en";
+    private string targetLanguage = "sk"; // Default translation target
     private DifficultyLevel selectedDifficulty = DifficultyLevel.Beginner;
     private string? topic;
     private int count = 5;
@@ -133,6 +150,23 @@ else if (!isLoading && texts == null)
         {
             isLoading = false;
         }
+    }
+    
+    /// <summary>
+    /// Navigate to reading page with translation
+    /// </summary>
+    private void NavigateToReading(POT_SEM.Core.Models.Text text)
+    {
+        // Encode parameters for URL
+        var encodedId = Uri.EscapeDataString(text.Id);
+        var sourceLang = text.Language;
+        var targetLang = targetLanguage;
+        
+        // Navigate to: /read/{sourceLang}/{targetLang}/{textId}
+        var url = $"/read/{sourceLang}/{targetLang}/{encodedId}";
+        
+        Console.WriteLine($"📖 Navigating to reading page: {url}");
+        Navigation.NavigateTo(url);
     }
     
     private string GetExcerpt(string content)
@@ -200,6 +234,17 @@ else if (!isLoading && texts == null)
         cursor: not-allowed;
     }
     
+    .btn-success {
+        background: #27ae60;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #229954;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
     .alert {
         padding: 1rem;
         border-radius: 4px;
@@ -262,6 +307,12 @@ else if (!isLoading && texts == null)
         color: #555;
         line-height: 1.6;
         margin-bottom: 1rem;
+    }
+    
+    .actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
     }
     
     .badge {

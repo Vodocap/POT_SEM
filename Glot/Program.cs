@@ -2,21 +2,24 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Glot;
 using POT_SEM.Core.Interfaces;
+using POT_SEM.Core.Models;
 using POT_SEM.Services.Builders;
-using POT_SEM.Services.Caching;
 using POT_SEM.Services.Database;
+using POT_SEM.Services.Processing;
+using POT_SEM.Services.Translation;
 using POT_SEM.Services.Factories;
-using POT_SEM.Services.Preloading;
-using POT_SEM.Services.RandomWordServices;
 using POT_SEM.Services.TopicStrategies;
+using POT_SEM.Services.Caching;
 using Supabase;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
+// Add root components
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // ========================================
-// HTTP CLIENT
+// HTTP CLIENT (pre API calls)
 // ========================================
 builder.Services.AddScoped(sp => new HttpClient 
 { 
@@ -24,116 +27,92 @@ builder.Services.AddScoped(sp => new HttpClient
 });
 
 // ========================================
-// SUPABASE CLIENT (Optional Dependency)
+// SUPABASE CLIENT
 // ========================================
-Client? supabaseClient = null;
-try
+// Use an HttpClient with BaseAddress set so relative config file requests work in WASM
+var httpForConfig = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) };
+var supabaseConfig = await SupabaseConfig.LoadAsync(httpForConfig);
+
+builder.Services.AddSingleton(provider => 
 {
-    var httpForConfig = new HttpClient 
-    { 
-        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) 
+    var url = supabaseConfig.Url;
+    var key = supabaseConfig.AnonKey;
+    
+    var options = new Supabase.SupabaseOptions
+    {
+        AutoRefreshToken = true,
+        AutoConnectRealtime = true
     };
     
-    var config = await SupabaseConfig.LoadAsync(httpForConfig);
-    supabaseClient = new Client(config.Url, config.AnonKey);
-    await supabaseClient.InitializeAsync();
-    
-    builder.Services.AddSingleton(supabaseClient);
-    Console.WriteLine("✅ Supabase initialized successfully");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"⚠️ Supabase unavailable: {ex.Message}");
-    Console.WriteLine("ℹ️ Application will run without database support");
-}
-
-// ========================================
-// RANDOM WORD SERVICES
-// Strategy Pattern - Different word generation implementations
-// ========================================
-builder.Services.AddScoped<WikipediaRandomWordService>();
-builder.Services.AddScoped<FallbackWordService>();
+    return new Supabase.Client(url, key, options);
+});
 
 // ========================================
 // TOPIC GENERATION STRATEGIES
-// Strategy Pattern - Different topic generation approaches
 // ========================================
-builder.Services.AddScoped<StaticTopicStrategy>();
-builder.Services.AddScoped<ApiTopicStrategy>();
-
-if (supabaseClient != null)
-{
-    builder.Services.AddScoped<DatabaseTopicStrategy>();
-}
-
-// ✅ DEFAULT STRATEGY: Database-first if available, otherwise API
-builder.Services.AddScoped<ITopicGenerationStrategy>(sp =>
-{
-    if (supabaseClient != null)
-    {
-        Console.WriteLine("🎯 Using DatabaseTopicStrategy as primary");
-        return sp.GetRequiredService<DatabaseTopicStrategy>();
-    }
-    else
-    {
-        Console.WriteLine("🎯 Using ApiTopicStrategy (no database)");
-        return sp.GetRequiredService<ApiTopicStrategy>();
-    }
-});
-
-// ========================================
-// TEXT STORAGE SERVICE (Database-dependent)
-// ✅ Must be registered BEFORE LanguageSourceFactory
-// ========================================
-if (supabaseClient != null)
-{
-    builder.Services.AddScoped<TextStorageService>();
-}
+builder.Services.AddSingleton<ITopicGenerationStrategy, StaticTopicStrategy>();
 
 // ========================================
 // LANGUAGE SOURCE FACTORY
-// Factory + Template Method Pattern
-// ✅ Now with auto-save support
 // ========================================
-builder.Services.AddScoped<LanguageSourceFactory>(sp =>
-{
-    var http = sp.GetRequiredService<HttpClient>();
-    var supabase = sp.GetService<Client>(); // Optional
-    var storageService = sp.GetService<TextStorageService>(); // Optional
-    
-    return new LanguageSourceFactory(http, supabase, storageService);
-});
+// Register as scoped so it can consume scoped services like HttpClient
+builder.Services.AddScoped<LanguageSourceFactory>();
 
 // ========================================
-// TEXT CACHE SERVICE
-// Singleton - Shared cache across application
+// TEXT SERVICES (from existing system)
 // ========================================
+
+// Text cache service
 builder.Services.AddSingleton<ITextCacheService, TextCacheService>();
 
-// ========================================
-// TEXT PROVIDER BUILDER
-// Builder + Fluent API Pattern
-// Auto-wired dependencies via constructor injection
-// ========================================
+// Text provider builder
+// Register as scoped to allow dependencies that are scoped (HttpClient, factory)
 builder.Services.AddScoped<TextProviderBuilder>();
 
-// ========================================
-// TEXT PRELOAD SERVICE
-// Eager initialization for cache warming
-// ========================================
-builder.Services.AddScoped<TextPreloadService>();
+// Text storage
+builder.Services.AddSingleton<TextStorageService>();
 
 // ========================================
-// RUN APPLICATION
+// TRANSLATION SERVICES (STRATEGY PATTERN)
 // ========================================
-var app = builder.Build();
 
-Console.WriteLine("🚀 Application initialized");
-Console.WriteLine($"📦 Services registered:");
-Console.WriteLine($"   - Supabase: {(supabaseClient != null ? "✅" : "❌")}");
-Console.WriteLine($"   - Text Storage: {(supabaseClient != null ? "✅" : "❌")}");
-Console.WriteLine($"   - Text Cache: ✅");
-Console.WriteLine($"   - Language Factory: ✅");
-Console.WriteLine($"   - Topic Strategy: {(supabaseClient != null ? "✅ Database-first" : "✅ API-based")}");
+// Register all translation strategies
+builder.Services.AddScoped<ApiTranslationService>();
+builder.Services.AddScoped<DatabaseTranslationService>();
 
-await app.RunAsync();
+// CHAIN OF RESPONSIBILITY: Database → API
+builder.Services.AddScoped<ITranslationStrategy>(sp =>
+{
+    var apiService = sp.GetRequiredService<ApiTranslationService>();
+    var dbService = sp.GetService<DatabaseTranslationService>();
+    var flyweight = sp.GetRequiredService<TranslationFlyweightFactory>();
+
+    // Create chain: Flyweight → DB (optional) → API
+    var chain = new ChainedTranslationService(flyweight, dbService, apiService);
+
+    return chain;
+});
+
+// Translation flyweight factory
+builder.Services.AddSingleton<TranslationFlyweightFactory>();
+
+// ========================================
+// PROCESSING SERVICES (COMPOSITE + FACADE)
+// ========================================
+
+// Text parser (COMPOSITE pattern)
+builder.Services.AddScoped<TextParser>();
+
+// Processing facade (simplifies the whole pipeline)
+builder.Services.AddScoped<TextProcessingFacade>();
+// Furigana decorator (MVP static dictionary)
+builder.Services.AddSingleton<POT_SEM.Services.Decorators.FuriganaDecorator>();
+// Heuristic fallback decorator (server-side, coarse readings)
+builder.Services.AddSingleton<POT_SEM.Services.Decorators.HeuristicFuriganaDecorator>();
+// Note: Kuroshiro client removed; server-side heuristic/fallback decorators are used instead.
+
+// ========================================
+// RUN APP
+// ========================================
+
+await builder.Build().RunAsync();

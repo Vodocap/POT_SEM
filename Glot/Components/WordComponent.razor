@@ -1,0 +1,222 @@
+@using POT_SEM.Core.Interfaces
+@namespace POT_SEM.Components
+
+<div class="word-wrapper @GetWrapperClass()" 
+     @onmouseenter="OnMouseEnter" 
+     @onmouseleave="OnMouseLeave">
+    
+    <!-- Primary display (what user sees normally) -->
+    <span class="word-display @Display.GetCssClass()">
+        @Display.GetDisplayText()
+    </span>
+    
+    <!-- Tooltip (shown on hover) -->
+    @if (_isHovered)
+    {
+        <div class="word-tooltip @GetTooltipPosition()">
+            @foreach (var layer in GetSortedLayers())
+            {
+                <div class="tooltip-layer @layer.CssClass">
+                    <span class="layer-type">@layer.Type:</span>
+                    <span class="layer-text">@layer.Text</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IWordDisplay Display { get; set; } = null!;
+    
+    [Parameter]
+    public string SourceLang { get; set; } = "en";
+    
+    private bool _isHovered = false;
+    
+    private void OnMouseEnter()
+    {
+        _isHovered = true;
+    }
+    
+    private void OnMouseLeave()
+    {
+        _isHovered = false;
+    }
+    
+    private List<DisplayLayer> GetSortedLayers()
+    {
+        return Display.GetLayers()
+            .OrderBy(l => l.Order)
+            .ToList();
+    }
+    
+    private string GetWrapperClass()
+    {
+        return SourceLang switch
+        {
+            "ar" => "rtl-word",
+            "ja" => "ja-word",
+            _ => "ltr-word"
+        };
+    }
+    
+    private string GetTooltipPosition()
+    {
+        return SourceLang == "ar" ? "tooltip-right" : "tooltip-top";
+    }
+}
+
+<style>
+    .word-wrapper {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .word-wrapper:hover {
+        transform: translateY(-2px);
+    }
+    
+    .word-display {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .word-base {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .word-base:hover {
+        background: #bbdefb;
+    }
+    
+    .word-punctuation {
+        background: transparent;
+        color: #333;
+        cursor: default;
+    }
+    
+    .has-translation {
+        border-bottom: 2px solid #4caf50;
+    }
+    
+    .has-furigana {
+        border-top: 1px dotted #ff9800;
+    }
+    
+    .has-romaji {
+        font-style: italic;
+    }
+    
+    /* Tooltip */
+    .word-tooltip {
+        position: absolute;
+        background: white;
+        border: 2px solid #333;
+        border-radius: 8px;
+        padding: 0.75rem;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        z-index: 1000;
+        min-width: 200px;
+        white-space: nowrap;
+    }
+    
+    .tooltip-top {
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-bottom: 0.5rem;
+    }
+    
+    .tooltip-right {
+        right: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        margin-right: 0.5rem;
+    }
+    
+    .tooltip-layer {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .tooltip-layer:last-child {
+        border-bottom: none;
+    }
+    
+    .layer-type {
+        font-weight: bold;
+        color: #666;
+        min-width: 100px;
+        font-size: 0.85rem;
+    }
+    
+    .layer-text {
+        color: #333;
+        font-size: 0.95rem;
+    }
+    
+    /* Layer-specific styling */
+    .word-original .layer-text {
+        font-weight: bold;
+        color: #1976d2;
+    }
+    
+    .word-furigana .layer-text {
+        color: #ff9800;
+        font-size: 0.85rem;
+    }
+    
+    .word-romaji .layer-text {
+        color: #9c27b0;
+        font-style: italic;
+    }
+    
+    .word-transliteration .layer-text {
+        color: #00bcd4;
+    }
+    
+    .word-translation .layer-text {
+        color: #4caf50;
+        font-weight: 600;
+    }
+    
+    /* Language-specific */
+    .ja-word .word-display {
+        font-family: "Noto Sans JP", "Yu Gothic", sans-serif;
+        font-size: 1.2rem;
+    }
+    
+    .rtl-word .word-display {
+        font-family: "Noto Naskh Arabic", "Traditional Arabic", serif;
+        font-size: 1.2rem;
+        direction: rtl;
+    }
+    
+    /* Arrow for tooltip */
+    .tooltip-top::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 8px solid transparent;
+        border-top-color: #333;
+    }
+    
+    .tooltip-right::after {
+        content: '';
+        position: absolute;
+        left: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+        border: 8px solid transparent;
+        border-left-color: #333;
+    }
+</style>
