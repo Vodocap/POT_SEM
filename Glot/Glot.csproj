@@ -17,4 +17,11 @@
     <ProjectReference Include="..\Services\Services.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Remove="wwwroot\appsettings.Development.json" />
+    <Content Remove="wwwroot\appsettings.json" />
+    <None Include="wwwroot\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="wwwroot\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

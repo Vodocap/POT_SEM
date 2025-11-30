@@ -11,19 +11,22 @@ namespace POT_SEM.Services.Processing
     {
         private readonly TextParser _parser;
         private readonly ITranslationStrategy _translationChain;
-        private readonly POT_SEM.Services.Decorators.FuriganaDecorator? _furiganaDecorator;
-        private readonly POT_SEM.Services.Decorators.HeuristicFuriganaDecorator? _heuristicDecorator;
+        private readonly POT_SEM.Services.Transliteration.FuriganaEnrichmentService? _furiganaEnrichment;
+        private readonly IEnumerable<POT_SEM.Core.Interfaces.ITransliterationService> _transliterationServices;
+        private readonly POT_SEM.Services.Translation.TranslationFlyweightFactory? _flyweight;
 
         public TextProcessingFacade(
             TextParser parser,
             ITranslationStrategy translationChain,
-            POT_SEM.Services.Decorators.FuriganaDecorator? furiganaDecorator = null,
-            POT_SEM.Services.Decorators.HeuristicFuriganaDecorator? heuristicDecorator = null)
+            IEnumerable<POT_SEM.Core.Interfaces.ITransliterationService> transliterationServices,
+            POT_SEM.Services.Translation.TranslationFlyweightFactory? flyweight = null,
+            POT_SEM.Services.Transliteration.FuriganaEnrichmentService? furiganaEnrichment = null)
         {
             _parser = parser;
             _translationChain = translationChain;
-            _furiganaDecorator = furiganaDecorator;
-            _heuristicDecorator = heuristicDecorator;
+            _transliterationServices = transliterationServices ?? Enumerable.Empty<POT_SEM.Core.Interfaces.ITransliterationService>();
+            _flyweight = flyweight;
+            _furiganaEnrichment = furiganaEnrichment;
         }
         
         /// <summary>
@@ -46,7 +49,7 @@ namespace POT_SEM.Services.Processing
             
             Console.WriteLine($"   Unique words to translate: {uniqueWords.Count}");
             
-            // 3. Translate all unique words (CHAIN will handle caching + DB + API)
+            // 3. Translate all unique words (CHAIN will handle caching + dictionary + DB + API)
             var translations = await _translationChain.TranslateBatchAsync(
                 uniqueWords, 
                 sourceLang, 
@@ -60,6 +63,60 @@ namespace POT_SEM.Services.Processing
                     if (!word.IsPunctuation && translations.ContainsKey(word.Normalized))
                     {
                         word.Translation = translations[word.Normalized];
+                    }
+                }
+            }
+        
+
+        
+
+            // Apply furigana decorator (if available and language is Japanese)
+            if (_furiganaEnrichment != null)
+            {
+                processedText = await _furiganaEnrichment.EnrichTextAsync(processedText);
+            }
+
+            // 4.b Generate transliterations when available (e.g., Arabic, Japanese)
+            foreach (var sentence in processedText.Sentences)
+            {
+                foreach (var word in sentence.Words)
+                {
+                    if (word.IsPunctuation) continue;
+
+                    // Check flyweight cache first
+                    var cached = _flyweight?.GetTransliteration(processedText.SourceLanguage, word.Normalized);
+                if (!string.IsNullOrEmpty(cached))
+                    {
+                        word.Transliteration = cached;
+                        continue;
+                    }
+
+                    // Find a transliteration service that supports the source language
+                    var svc = _transliterationServices.FirstOrDefault(s => s.SupportsLanguage(processedText.SourceLanguage));
+                    if (svc == null) continue;
+
+                    try
+                    {
+                        // If transliteration is already present (e.g., set by JS decorator), keep it
+                        if (!string.IsNullOrEmpty(word.Transliteration))
+                        {
+                            Console.WriteLine($"[Transliteration] Skipping, already set for '{word.Original}' => '{word.Transliteration}'");
+                            continue;
+                        }
+
+                        // For Japanese prefer to transliterate from furigana (hiragana) when available
+                        var input = word.Furigana ?? word.Original;
+                        var t = await svc.TransliterateAsync(input, processedText.SourceLanguage);
+                        if (!string.IsNullOrEmpty(t))
+                        {
+                            word.Transliteration = t;
+                            Console.WriteLine($"[Transliteration] Set for '{word.Original}' => '{t}'");
+                            try { _flyweight?.AddTransliteration(processedText.SourceLanguage, word.Normalized, t); } catch { }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Transliteration failed for '{word.Original}': {ex.Message}");
                     }
                 }
             }
@@ -78,17 +135,7 @@ namespace POT_SEM.Services.Processing
                 }
             }
             
-            // 5. Apply furigana decorator (if available and language is Japanese)
-            if (_furiganaDecorator != null)
-            {
-                processedText = await _furiganaDecorator.DecorateTextAsync(processedText);
-            }
-
-            // 6. If words still lack furigana, try the heuristic decorator as a fallback
-            if (_heuristicDecorator != null)
-            {
-                await _heuristicDecorator.DecorateTextAsync(processedText);
-            }
+            // (moved furigana/transliteration earlier)
 
             Console.WriteLine($"   ✅ FACADE complete: {processedText.TotalSentences} sentences, {processedText.TotalWords} words");
 
@@ -146,6 +193,50 @@ namespace POT_SEM.Services.Processing
                 }
             }
 
+            // Apply furigana decorators (if available)
+            if (_furiganaEnrichment != null)
+            {
+                var temp = new ProcessedText { OriginalText = tempText, SourceLanguage = sourceLang, TargetLanguage = targetLang, Sentences = new List<ProcessedSentence> { sentence } };
+                await _furiganaEnrichment.EnrichTextAsync(temp);
+                // copy back furigana into sentence (decorator modifies in place)
+                sentence = temp.Sentences.First();
+            }
+
+            // Generate transliteration using furigana when possible
+            var svc = _transliterationServices.FirstOrDefault(s => s.SupportsLanguage(sourceLang));
+            if (svc != null)
+            {
+                foreach (var word in sentence.Words)
+                {
+                    if (word.IsPunctuation) continue;
+                    var cached = _flyweight?.GetTransliteration(sourceLang, word.Normalized);
+                    if (!string.IsNullOrEmpty(cached))
+                    {
+                        word.Transliteration = cached;
+                        continue;
+                    }
+
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(word.Transliteration))
+                        {
+                            Console.WriteLine($"[Transliteration] (sentence) Skipping, already set for '{word.Original}' => '{word.Transliteration}'");
+                            continue;
+                        }
+
+                        var input = word.Furigana ?? word.Original;
+                        var t = await svc.TransliterateAsync(input, sourceLang);
+                        if (!string.IsNullOrEmpty(t))
+                        {
+                            word.Transliteration = t;
+                            Console.WriteLine($"[Transliteration] (sentence) Set for '{word.Original}' => '{t}'");
+                            try { _flyweight?.AddTransliteration(sourceLang, word.Normalized, t); } catch { }
+                        }
+                    }
+                    catch { }
+                }
+            }
+
             // Translate sentence (preserve context) using translation strategy
             try
             {
@@ -156,7 +247,7 @@ namespace POT_SEM.Services.Processing
             {
                 Console.WriteLine($"   ⚠️ Sentence translation failed: {ex.Message}");
             }
-            
+
             return sentence;
         }
     }

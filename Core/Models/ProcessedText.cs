@@ -64,6 +64,9 @@ namespace POT_SEM.Core.Models
         public string? Transliteration { get; set; }
         public string? Furigana { get; set; }
 
+        // Flyweight reference to dictionary entry (Wiktionary)
+        public POT_SEM.Core.Models.DictionaryEntry? DictionaryEntry { get; set; }
+
         // Additional metadata for decorators (e.g., hasFurigana)
         public Dictionary<string, object> Metadata { get; init; } = new();
         

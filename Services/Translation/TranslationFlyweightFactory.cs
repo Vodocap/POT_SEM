@@ -17,6 +17,16 @@ namespace POT_SEM.Services.Translation
         
         // Key: "ja:word" → Value: furigana (Japanese only)
         private readonly ConcurrentDictionary<string, string> _furiganaCache = new();
+        // Key: "lang:word" -> Value: DictionaryEntry (flyweight for dictionary meanings)
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, POT_SEM.Core.Models.DictionaryEntry> _dictionaryCache = new();
+        private readonly POT_SEM.Services.Dictionary.WiktionaryService? _wiktionaryService;
+
+        public TranslationFlyweightFactory() { }
+
+        public TranslationFlyweightFactory(POT_SEM.Services.Dictionary.WiktionaryService wiktionaryService)
+        {
+            _wiktionaryService = wiktionaryService;
+        }
         
         /// <summary>
         /// Get cached translation or return null
@@ -124,7 +134,7 @@ namespace POT_SEM.Services.Translation
                 TranslationsCached = _translationCache.Count,
                 TransliterationsCached = _transliterationCache.Count,
                 FuriganaCached = _furiganaCache.Count,
-                TotalEntries = _translationCache.Count + _transliterationCache.Count + _furiganaCache.Count
+                TotalEntries = _translationCache.Count + _transliterationCache.Count + _furiganaCache.Count + _dictionaryCache.Count
             };
         }
         
@@ -154,6 +164,53 @@ namespace POT_SEM.Services.Translation
         private string CreateFuriganaKey(string word)
         {
             return $"ja:{word}";
+        }
+
+        private string CreateDictionaryKey(string lang, string word)
+        {
+            return $"{lang.ToLowerInvariant()}:{word.ToLowerInvariant()}";
+        }
+
+        // Dictionary flyweight methods
+        public POT_SEM.Core.Models.DictionaryEntry? GetDictionaryEntry(string lang, string word)
+        {
+            var key = CreateDictionaryKey(lang, word);
+            return _dictionaryCache.TryGetValue(key, out var entry) ? entry : null;
+        }
+
+        public void AddDictionaryEntry(string lang, string word, POT_SEM.Core.Models.DictionaryEntry entry)
+        {
+            if (entry == null) return;
+            var key = CreateDictionaryKey(lang, word);
+            _dictionaryCache.TryAdd(key, entry);
+        }
+
+        public async Task<Dictionary<string, POT_SEM.Core.Models.DictionaryEntry>> GetDictionaryEntriesBatchAsync(List<string> words, string lang)
+        {
+            var results = new Dictionary<string, POT_SEM.Core.Models.DictionaryEntry>();
+            var toFetch = new List<string>();
+
+            foreach (var word in words)
+            {
+                var key = CreateDictionaryKey(lang, word);
+                if (_dictionaryCache.TryGetValue(key, out var cached))
+                    results[word] = cached;
+                else
+                    toFetch.Add(word);
+            }
+
+            if (toFetch.Any() && _wiktionaryService != null)
+            {
+                var fetched = await _wiktionaryService.LookupBatchAsync(toFetch, lang).ConfigureAwait(false);
+                foreach (var kv in fetched)
+                {
+                    var key = CreateDictionaryKey(lang, kv.Key);
+                    _dictionaryCache[key] = kv.Value;
+                    results[kv.Key] = kv.Value;
+                }
+            }
+
+            return results;
         }
     }
     

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Glot;
+using Microsoft.JSInterop;
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 using POT_SEM.Services.Builders;
@@ -80,21 +81,61 @@ builder.Services.AddSingleton<TextStorageService>();
 builder.Services.AddScoped<ApiTranslationService>();
 builder.Services.AddScoped<DatabaseTranslationService>();
 
-// CHAIN OF RESPONSIBILITY: Database → API
-builder.Services.AddScoped<ITranslationStrategy>(sp =>
+// Register DictionaryTranslationStrategy (no helper needed initially)
+builder.Services.AddScoped<DictionaryTranslationStrategy>(sp =>
+{
+    var flyweight = sp.GetRequiredService<TranslationFlyweightFactory>();
+    // Don't pass helper to avoid circular dependency - meanings joining is simple enough
+    return new DictionaryTranslationStrategy(flyweight, null);
+});
+
+// CHAIN OF RESPONSIBILITY: Flyweight → Dictionary → Database → API
+builder.Services.AddScoped<ChainedTranslationService>(sp =>
 {
     var apiService = sp.GetRequiredService<ApiTranslationService>();
     var dbService = sp.GetService<DatabaseTranslationService>();
     var flyweight = sp.GetRequiredService<TranslationFlyweightFactory>();
+    var dictionary = sp.GetRequiredService<DictionaryTranslationStrategy>();
 
-    // Create chain: Flyweight → DB (optional) → API
-    var chain = new ChainedTranslationService(flyweight, dbService, apiService);
-
-    return chain;
+    // Create chain: Flyweight → Dictionary → DB (optional) → API
+    return new ChainedTranslationService(flyweight, dictionary, dbService, apiService);
 });
 
-// Translation flyweight factory
-builder.Services.AddSingleton<TranslationFlyweightFactory>();
+// Register the chain as ITranslationStrategy
+builder.Services.AddScoped<ITranslationStrategy>(sp => sp.GetRequiredService<ChainedTranslationService>());
+
+// Register DictionaryTranslationHelper (uses ChainedTranslationService for DB persistence)
+builder.Services.AddScoped<POT_SEM.Services.Dictionary.DictionaryTranslationHelper>(sp =>
+{
+    var chainedService = sp.GetService<ChainedTranslationService>();
+    return new POT_SEM.Services.Dictionary.DictionaryTranslationHelper(chainedService);
+});
+
+// Wiktionary service and Translation flyweight factory (now includes dictionary cache)
+builder.Services.AddScoped(sp => new POT_SEM.Services.Dictionary.WiktionaryService(sp.GetRequiredService<HttpClient>()));
+builder.Services.AddScoped<TranslationFlyweightFactory>(sp =>
+{
+    var wiki = sp.GetService<POT_SEM.Services.Dictionary.WiktionaryService>();
+    return wiki != null ? new TranslationFlyweightFactory(wiki) : new TranslationFlyweightFactory();
+});
+
+// Transliteration services (Arabic, Japanese)
+builder.Services.AddSingleton<POT_SEM.Services.Transliteration.ArabicTransliterationService>();
+builder.Services.AddSingleton<POT_SEM.Services.Transliteration.JapaneseRomajiService>();
+// Register transliteration implementations for IEnumerable<ITransliterationService>
+builder.Services.AddSingleton<POT_SEM.Core.Interfaces.ITransliterationService, POT_SEM.Services.Transliteration.ArabicTransliterationService>();
+builder.Services.AddSingleton<POT_SEM.Core.Interfaces.ITransliterationService, POT_SEM.Services.Transliteration.JapaneseRomajiService>();
+
+// Furigana enrichment service with API integration
+builder.Services.AddScoped<POT_SEM.Services.Transliteration.FuriganaEnrichmentService>(sp =>
+{
+    var httpClient = sp.GetRequiredService<HttpClient>();
+    var romajiService = sp.GetRequiredService<POT_SEM.Services.Transliteration.JapaneseRomajiService>();
+    return new POT_SEM.Services.Transliteration.FuriganaEnrichmentService(httpClient, romajiService);
+});
+// Also register as ITransliterationService
+builder.Services.AddScoped<POT_SEM.Core.Interfaces.ITransliterationService>(sp => 
+    sp.GetRequiredService<POT_SEM.Services.Transliteration.FuriganaEnrichmentService>());
 
 // ========================================
 // PROCESSING SERVICES (COMPOSITE + FACADE)
@@ -104,12 +145,16 @@ builder.Services.AddSingleton<TranslationFlyweightFactory>();
 builder.Services.AddScoped<TextParser>();
 
 // Processing facade (simplifies the whole pipeline)
-builder.Services.AddScoped<TextProcessingFacade>();
-// Furigana decorator (MVP static dictionary)
-builder.Services.AddSingleton<POT_SEM.Services.Decorators.FuriganaDecorator>();
-// Heuristic fallback decorator (server-side, coarse readings)
-builder.Services.AddSingleton<POT_SEM.Services.Decorators.HeuristicFuriganaDecorator>();
-// Note: Kuroshiro client removed; server-side heuristic/fallback decorators are used instead.
+builder.Services.AddScoped<TextProcessingFacade>(sp =>
+{
+    var parser = sp.GetRequiredService<TextParser>();
+    var translationChain = sp.GetRequiredService<ITranslationStrategy>();
+    var transliterationServices = sp.GetServices<POT_SEM.Core.Interfaces.ITransliterationService>();
+    var flyweight = sp.GetRequiredService<TranslationFlyweightFactory>();
+    var furiganaEnrichment = sp.GetRequiredService<POT_SEM.Services.Transliteration.FuriganaEnrichmentService>();
+
+    return new TextProcessingFacade(parser, translationChain, transliterationServices, flyweight, furiganaEnrichment);
+});
 
 // ========================================
 // RUN APP

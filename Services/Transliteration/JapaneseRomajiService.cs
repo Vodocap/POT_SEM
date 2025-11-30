@@ -57,23 +57,57 @@ namespace POT_SEM.Services.Transliteration
                 return null;
             }
             
-            var result = "";
-            
-            for (int i = 0; i < text.Length; i++)
+            // Convert katakana to hiragana for consistent mapping
+            var normalized = ConvertKatakanaToHiragana(text);
+
+            var sb = new System.Text.StringBuilder(normalized.Length * 2);
+            var mappedAny = false;
+
+            for (int i = 0; i < normalized.Length; i++)
             {
-                var ch = text[i].ToString();
-                
-                if (HiraganaToRomaji.ContainsKey(ch))
+                var ch = normalized[i].ToString();
+
+                if (HiraganaToRomaji.TryGetValue(ch, out var romaji))
                 {
-                    result += HiraganaToRomaji[ch];
+                    sb.Append(romaji);
+                    mappedAny = true;
                 }
                 else
                 {
-                    result += ch; // Keep kanji/katakana as is
+                    // skip kanji/unknown characters rather than echoing them
                 }
             }
-            
-            return await Task.FromResult(result);
+
+            if (!mappedAny)
+            {
+                // Nothing transliterable (likely pure kanji) — signal failure so caller doesn't store kanji as romaji
+                return await Task.FromResult<string?>(null);
+            }
+
+            return await Task.FromResult(sb.ToString());
+        }
+
+        private static string ConvertKatakanaToHiragana(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+
+            var sb = new System.Text.StringBuilder(input.Length);
+            foreach (var ch in input)
+            {
+                // Katakana block: U+30A0 - U+30FF, Hiragana block: U+3040 - U+309F
+                if (ch >= '\u30A1' && ch <= '\u30F6')
+                {
+                    // shift to hiragana equivalent
+                    var hiragana = (char)(ch - 0x60);
+                    sb.Append(hiragana);
+                }
+                else
+                {
+                    sb.Append(ch);
+                }
+            }
+
+            return sb.ToString();
         }
         
         public bool SupportsLanguage(string language) => language == "ja";
