@@ -12,21 +12,43 @@ namespace POT_SEM.Services.Translation
     public class ChainedTranslationService : ITranslationStrategy
     {
         private readonly TranslationFlyweightFactory _flyweight;
+        private readonly DictionaryTranslationStrategy? _dictionary;  // ← Dictionary strategy
         private readonly DatabaseTranslationService? _database;  // ← Nullable
         private readonly ApiTranslationService _api;
         
-        public string StrategyName => _database != null 
-            ? "Chained (Cache → DB → API)" 
-            : "Chained (Cache → API)";
+        public string StrategyName => _dictionary != null
+            ? "Chained (Cache → Dictionary → DB → API)"
+            : _database != null 
+                ? "Chained (Cache → DB → API)" 
+                : "Chained (Cache → API)";
         
         public ChainedTranslationService(
             TranslationFlyweightFactory flyweight,
+            DictionaryTranslationStrategy? dictionary,  // ← Dictionary strategy parameter
             DatabaseTranslationService? database,  // ← Nullable
             ApiTranslationService api)
         {
             _flyweight = flyweight;
+            _dictionary = dictionary;
             _database = database;
             _api = api;
+        }
+
+        /// <summary>
+        /// Persist a translation into the configured database if available.
+        /// This allows callers (e.g., dictionary assigners) to store translations discovered from other sources.
+        /// </summary>
+        public async Task SaveTranslationToDatabaseAsync(string originalWord, string translation, string sourceLang, string targetLang, string? transliteration = null, string? furigana = null)
+        {
+            if (_database == null) return;
+            try
+            {
+                await _database.SaveTranslationAsync(originalWord, translation, sourceLang, targetLang, transliteration, furigana);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to save dictionary-derived translation to DB for '{originalWord}': {ex.Message}");
+            }
         }
         
         public async Task<string?> TranslateWordAsync(string word, string sourceLang, string targetLang)
@@ -45,16 +67,23 @@ namespace POT_SEM.Services.Translation
                 Console.WriteLine($"   ✅ FLYWEIGHT HIT");
                 return cached;
             }
-            
-            // STEP 2: Try DATABASE (if available)
-            if (_database != null)
+
+            // STEP 2: Try DICTIONARY strategy (if available)
+            if (_dictionary != null)
             {
-                var dbResult = await _database.TranslateWordAsync(word, sourceLang, targetLang);
-                if (dbResult != null)
+                var dictResult = await _dictionary.TranslateWordAsync(word, sourceLang, targetLang);
+                if (dictResult != null)
                 {
-                    Console.WriteLine($"   ✅ DATABASE HIT");
-                    _flyweight.AddTranslation(sourceLang, targetLang, word, dbResult);
-                    return dbResult;
+                    // Cache the dictionary result
+                    try { _flyweight.AddTranslation(sourceLang, targetLang, word, dictResult); } catch { }
+                    
+                    // Save to database if available
+                    if (_database != null)
+                    {
+                        _ = Task.Run(async () => await SaveTranslationToDatabaseAsync(word, dictResult, sourceLang, targetLang, null, null));
+                    }
+                    
+                    return dictResult;
                 }
             }
             
@@ -94,7 +123,7 @@ namespace POT_SEM.Services.Translation
             
             Console.WriteLine($"🔗 CHAIN batch: {wordsToTranslate.Count} words");
             
-            // STEP 1: Check flyweight
+            // STEP 1: Check flyweight cache
             foreach (var word in wordsToTranslate.ToList())
             {
                 var cached = _flyweight.GetTranslation(sourceLang, targetLang, word);
@@ -112,18 +141,22 @@ namespace POT_SEM.Services.Translation
                 return results;
             }
             
-            // STEP 2: Check database (if available)
-            if (_database != null)
+            // STEP 2: Try dictionary strategy for remaining words
+            if (_dictionary != null)
             {
-                var dbResults = await _database.TranslateBatchAsync(wordsToTranslate, sourceLang, targetLang);
-                foreach (var (word, translation) in dbResults)
+                var dictResults = await _dictionary.TranslateBatchAsync(wordsToTranslate, sourceLang, targetLang);
+                foreach (var (word, translation) in dictResults)
                 {
                     results[word] = translation;
-                    _flyweight.AddTranslation(sourceLang, targetLang, word, translation);
+                    try { _flyweight.AddTranslation(sourceLang, targetLang, word, translation); } catch { }
                     wordsToTranslate.Remove(word);
+                    
+                    // Save to database if available
+                    if (_database != null)
+                    {
+                        _ = Task.Run(async () => await _database.SaveTranslationAsync(word, translation, sourceLang, targetLang));
+                    }
                 }
-                
-                Console.WriteLine($"   💾 DATABASE: {dbResults.Count} found, {wordsToTranslate.Count} remaining");
             }
             
             if (!wordsToTranslate.Any())
@@ -131,7 +164,7 @@ namespace POT_SEM.Services.Translation
                 return results;
             }
             
-            // STEP 3: Use API
+            // STEP 3: Use API for remaining words
             var apiResults = await _api.TranslateBatchAsync(wordsToTranslate, sourceLang, targetLang);
             foreach (var (word, translation) in apiResults)
             {
