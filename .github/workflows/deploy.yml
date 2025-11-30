@@ -24,6 +24,9 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore Glot/Glot.csproj
     
+    - name: Create dummy Development config
+      run: echo '{}' > Glot/wwwroot/appsettings.Development.json
+    
     - name: Build
       run: dotnet build Glot/Glot.csproj -c Release --no-restore
     
@@ -48,8 +51,45 @@ jobs:
     - name: Add .nojekyll file
       run: touch release/wwwroot/.nojekyll
     
-    - name: Copy index.html to 404.html
-      run: cp release/wwwroot/index.html release/wwwroot/404.html
+    - name: Create smart 404.html with redirect
+      run: |
+        cat > release/wwwroot/404.html << 'EOFHTML'
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="utf-8" />
+            <title>Redirecting...</title>
+            <script>
+              (function() 
+              {
+                var path = window.location.pathname;
+                var base = '/POT_SEM/';
+                
+                if (path.startsWith(base)) 
+                {
+                  var route = path.substring(base.length);
+                  window.location.replace(base + '?redirect=' + encodeURIComponent(route));
+                }
+              })();
+            </script>
+        </head>
+        <body>
+            <p>⏳ Redirecting...</p>
+        </body>
+        </html>
+        EOFHTML
+    
+    - name: Add redirect handler to index.html
+      run: |
+        sed -i '/<script src="_framework\/blazor.webassembly.js"><\/script>/i \
+        <script>\
+          (function() {\
+            var redirect = new URLSearchParams(window.location.search).get("redirect");\
+            if (redirect) {\
+              history.replaceState(null, null, "/POT_SEM/" + redirect);\
+            }\
+          })();\
+        </script>' release/wwwroot/index.html
     
     - name: Deploy to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
