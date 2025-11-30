@@ -14,11 +14,10 @@
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
-        <div class="loading-progress-text"></div>
+        <div class="minimal-loader">
+            <div class="loader-circle"></div>
+            <div class="loader-text">Loading</div>
+        </div>
     </div>
 
     <div id="blazor-error-ui">
@@ -26,6 +25,10 @@
         <a href="." class="reload">Reload</a>
         <span class="dismiss">🗙</span>
     </div>
+    
+    <!-- Fungana AI API interop -->
+    <script src="kuroshiro-interop.js"></script>
+    <script src="furigana-apply.js"></script>
     <script src="tooltip.js"></script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
