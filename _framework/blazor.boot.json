@@ -1,10 +1,10 @@
 {
   "mainAssemblyName": "Glot",
   "resources": {
-    "hash": "sha256-NGn3dTwr4kgOX3ZeIyrSXzpJcHJpV5g6Oj3d7N79+ic=",
+    "hash": "sha256-6k3csHy5BSfd3oCBmz+fYjr91u00gUs/cxkJPWRFZpc=",
     "fingerprinting": {
-      "Core.dd4gjt4suk.wasm": "Core.wasm",
-      "Glot.xner1rxagn.wasm": "Glot.wasm",
+      "Core.wdl87cb3um.wasm": "Core.wasm",
+      "Glot.9bh02jle7i.wasm": "Glot.wasm",
       "Microsoft.AspNetCore.Components.Web.kk052fg825.wasm": "Microsoft.AspNetCore.Components.Web.wasm",
       "Microsoft.AspNetCore.Components.WebAssembly.nvr1tj7rwf.wasm": "Microsoft.AspNetCore.Components.WebAssembly.wasm",
       "Microsoft.AspNetCore.Components.d84ipbt2rg.wasm": "Microsoft.AspNetCore.Components.wasm",
@@ -26,7 +26,7 @@
       "Microsoft.JSInterop.WebAssembly.9tiedlnvko.wasm": "Microsoft.JSInterop.WebAssembly.wasm",
       "MimeMapping.uuj6opn66y.wasm": "MimeMapping.wasm",
       "Newtonsoft.Json.qkbufwhni2.wasm": "Newtonsoft.Json.wasm",
-      "Services.gbqv80e7kf.wasm": "Services.wasm",
+      "Services.gx6i4tyst8.wasm": "Services.wasm",
       "Supabase.Core.q34ft3w8aq.wasm": "Supabase.Core.wasm",
       "Supabase.Functions.w4gz1z4ill.wasm": "Supabase.Functions.wasm",
       "Supabase.Gotrue.gsal9ee3gm.wasm": "Supabase.Gotrue.wasm",
@@ -123,8 +123,8 @@
       "System.Runtime.InteropServices.JavaScript.7u81f8olp1.wasm": "sha256-/zEYK1VQFpcGHE49otyHuuLSnHHmI8k4PJBBu8zEx3g="
     },
     "assembly": {
-      "Core.dd4gjt4suk.wasm": "sha256-IUGgCNgWpxh9XQjPnlPUCs92HmmJIWSrOH2ULiaucE4=",
-      "Glot.xner1rxagn.wasm": "sha256-AwDohlcjCZ6WX+e/KtHXslrG1s3TIGAvtvEMxGawknA=",
+      "Core.wdl87cb3um.wasm": "sha256-vFrwNcTaLBPB9aKsUKrthG+t6x7XpHEPGbn4EwsAnaE=",
+      "Glot.9bh02jle7i.wasm": "sha256-W2pP5jAfzdqI48YQ0URmK0FNe9gd01m56LjIaJWnN7o=",
       "Microsoft.AspNetCore.Components.Web.kk052fg825.wasm": "sha256-JHAfQNyqnfxJcWfmXXlqfkws6T9vhgr1zsp9PPe30jU=",
       "Microsoft.AspNetCore.Components.WebAssembly.nvr1tj7rwf.wasm": "sha256-Y9y4a637WBoDa08GX7Qxx63oDFsCVE/4v8oZCvLkKTo=",
       "Microsoft.AspNetCore.Components.d84ipbt2rg.wasm": "sha256-7fquGksIpQ8ayJ9jGO7bIgT90bR9YWxRBtZblAocRaY=",
@@ -146,7 +146,7 @@
       "Microsoft.JSInterop.WebAssembly.9tiedlnvko.wasm": "sha256-vScvGCGFOzwoTsy7VKfMU9uuEskXbOdWabIc80iDa9g=",
       "MimeMapping.uuj6opn66y.wasm": "sha256-+kk84AGP4hqN1KjG/j3sWAZrbuS3oApS8lptkpjUK6g=",
       "Newtonsoft.Json.qkbufwhni2.wasm": "sha256-GlXMWKvDs45M2pACoR3Y4Qh8mcrOZGljqmvJY+6JZ5s=",
-      "Services.gbqv80e7kf.wasm": "sha256-BMFlZZz06ADWquzHVRwi3ShFNWHoEJ8n+kIbX8sxUko=",
+      "Services.gx6i4tyst8.wasm": "sha256-lCtE7tE9JdZmEYlFAz8eZ0Eb78eByFBgxwhUmTAq8eY=",
       "Supabase.Core.q34ft3w8aq.wasm": "sha256-hus3qpImHX1pvDmhZf2r6u0YqmH8DlrE8Tzd9QthR10=",
       "Supabase.Functions.w4gz1z4ill.wasm": "sha256-cAmNEcl3ZkcTAcSFQY9ViicWaBQnCMxJGk7fcpxTwAg=",
       "Supabase.Gotrue.gsal9ee3gm.wasm": "sha256-IJVfKJFlwBXRb7fR+mTHf66WvrXDZnn+xI+7Oohb0uo=",
