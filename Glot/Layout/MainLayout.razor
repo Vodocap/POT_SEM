@@ -1,16 +1,73 @@
 ﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+<div class="app-container">
+    <header class="app-header">
+        <div class="header-content">
+            <h1 class="app-title">GLOT</h1>
+            <nav class="app-nav">
+                <a href="/texts" class="nav-link">Texts</a>
+                <a href="/debug" class="nav-link">Debug</a>
+            </nav>
         </div>
+    </header>
 
-        <article class="content px-4">
-            @Body
-        </article>
+    <main class="app-main">
+        @Body
     </main>
 </div>
+
+<style>
+    .app-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-header {
+        background: #ffffff;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0;
+    }
+
+    .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .app-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 0.1em;
+        color: #1b6ec2;
+    }
+
+    .app-nav {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .nav-link {
+        text-decoration: none;
+        color: #6c757d;
+        font-weight: 500;
+        font-size: 0.95rem;
+        transition: color 0.2s;
+    }
+
+    .nav-link:hover {
+        color: #1b6ec2;
+    }
+
+    .app-main {
+        flex: 1;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+</style>
