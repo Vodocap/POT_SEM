@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 using Postgrest.Attributes;
 using Postgrest.Models;
 
-namespace POT_SEM.Services.Database
+namespace POT_SEM.Services.Databases
 {
     [Table("texts")]
     public class DatabaseText : BaseModel

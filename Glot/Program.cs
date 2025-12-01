@@ -4,13 +4,15 @@ using Glot;
 using Microsoft.JSInterop;
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
-using POT_SEM.Services.Builders;
-using POT_SEM.Services.Database;
-using POT_SEM.Services.Processing;
-using POT_SEM.Services.Translation;
-using POT_SEM.Services.Factories;
-using POT_SEM.Services.TopicStrategies;
-using POT_SEM.Services.Caching;
+using POT_SEM.Services.Patterns.Factory;
+using POT_SEM.Services.Databases;
+using POT_SEM.Services.Patterns.Facade;
+using POT_SEM.Services.Patterns.Strategy;
+using POT_SEM.Services.Patterns.Strategy.Topic;
+using POT_SEM.Services.Patterns.Flyweight;
+using POT_SEM.Services.Patterns.Flyweight.Cache;
+using POT_SEM.Services.Patterns.ChainOfResponsibility;
+using POT_SEM.Services.Patterns.Composite;
 using Supabase;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -84,21 +86,21 @@ builder.Services.AddScoped<DatabaseTranslationService>();
 // Register DictionaryTranslationStrategy (no helper needed initially)
 builder.Services.AddScoped<DictionaryTranslationStrategy>(sp =>
 {
-    var flyweight = sp.GetRequiredService<TranslationFlyweightFactory>();
+    var cache = sp.GetRequiredService<TranslationCacheService>();
     // Don't pass helper to avoid circular dependency - meanings joining is simple enough
-    return new DictionaryTranslationStrategy(flyweight, null);
+    return new DictionaryTranslationStrategy(cache, null);
 });
 
-// CHAIN OF RESPONSIBILITY: Flyweight → Dictionary → Database → API
+// CHAIN OF RESPONSIBILITY: Cache → Database → Dictionary → API
 builder.Services.AddScoped<ChainedTranslationService>(sp =>
 {
     var apiService = sp.GetRequiredService<ApiTranslationService>();
     var dbService = sp.GetService<DatabaseTranslationService>();
-    var flyweight = sp.GetRequiredService<TranslationFlyweightFactory>();
+    var cache = sp.GetRequiredService<TranslationCacheService>();
     var dictionary = sp.GetRequiredService<DictionaryTranslationStrategy>();
 
-    // Create chain: Flyweight → Dictionary → DB (optional) → API
-    return new ChainedTranslationService(flyweight, dictionary, dbService, apiService);
+    // Create chain: Cache → DB (fast) → Dictionary (slow AI) → API (slowest)
+    return new ChainedTranslationService(cache, dictionary, dbService, apiService);
 });
 
 // Register the chain as ITranslationStrategy
@@ -111,12 +113,22 @@ builder.Services.AddScoped<POT_SEM.Services.Dictionary.DictionaryTranslationHelp
     return new POT_SEM.Services.Dictionary.DictionaryTranslationHelper(chainedService);
 });
 
-// API Dictionary service and Translation flyweight factory (now includes dictionary cache)
+// API Dictionary service
 builder.Services.AddScoped(sp => new POT_SEM.Services.Dictionary.ApiDictionaryService(sp.GetRequiredService<HttpClient>()));
-builder.Services.AddScoped<TranslationFlyweightFactory>(sp =>
+
+// Translation Cache Service (simple memoization)
+builder.Services.AddScoped<TranslationCacheService>(sp =>
 {
     var apiDict = sp.GetService<POT_SEM.Services.Dictionary.ApiDictionaryService>();
-    return apiDict != null ? new TranslationFlyweightFactory(apiDict) : new TranslationFlyweightFactory();
+    return apiDict != null ? new TranslationCacheService(apiDict) : new TranslationCacheService();
+});
+
+// FLYWEIGHT PATTERN (Gang of Four) - Word Flyweight Factory with database integration
+builder.Services.AddScoped<WordFlyweightFactory>(sp =>
+{
+    var database = sp.GetService<DatabaseTranslationService>();
+    var apiDict = sp.GetService<POT_SEM.Services.Dictionary.ApiDictionaryService>();
+    return new WordFlyweightFactory(database, apiDict);
 });
 
 // Transliteration services (Arabic, Japanese)
@@ -141,19 +153,15 @@ builder.Services.AddScoped<POT_SEM.Core.Interfaces.ITransliterationService>(sp =
 // PROCESSING SERVICES (COMPOSITE + FACADE)
 // ========================================
 
-// Text parser (COMPOSITE pattern)
-builder.Services.AddScoped<TextParser>();
-
 // Processing facade (simplifies the whole pipeline)
 builder.Services.AddScoped<TextProcessingFacade>(sp =>
 {
-    var parser = sp.GetRequiredService<TextParser>();
     var translationChain = sp.GetRequiredService<ITranslationStrategy>();
     var transliterationServices = sp.GetServices<POT_SEM.Core.Interfaces.ITransliterationService>();
-    var flyweight = sp.GetRequiredService<TranslationFlyweightFactory>();
+    var cache = sp.GetRequiredService<TranslationCacheService>();
     var furiganaEnrichment = sp.GetRequiredService<POT_SEM.Services.Transliteration.FuriganaEnrichmentService>();
 
-    return new TextProcessingFacade(parser, translationChain, transliterationServices, flyweight, furiganaEnrichment);
+    return new TextProcessingFacade(translationChain, transliterationServices, cache, furiganaEnrichment);
 });
 
 // ========================================

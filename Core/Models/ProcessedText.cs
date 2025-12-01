@@ -49,29 +49,32 @@ namespace POT_SEM.Core.Models
 
     /// <summary>
     /// COMPOSITE PATTERN - Leaf (individual word)
-    /// FLYWEIGHT PATTERN - Translation shared across same words
+    /// FLYWEIGHT PATTERN - Stores intrinsic state that can be shared
+    /// This is now a lightweight reference with extrinsic state
     /// </summary>
     public class ProcessedWord
     {
-        // Original data
-        public required string Original { get; init; }
-        public required string Normalized { get; init; }
+        // Extrinsic state (context-specific, varies per occurrence)
         public required int Index { get; init; }
         public bool IsPunctuation { get; init; }
+        public int PositionInSentence { get; init; }
         
-        // FLYWEIGHT: Shared translations
+        // Intrinsic state (shared across same word)
+        // Note: These properties will be set by the Flyweight factory
+        public required string Original { get; init; }
+        public required string Normalized { get; init; }
+        
+        // FLYWEIGHT: Shared data (set once, reused for all occurrences of this word)
         public string? Translation { get; set; }
         public string? Transliteration { get; set; }
         public string? Furigana { get; set; }
-
-        // Flyweight reference to dictionary entry (Wiktionary)
         public POT_SEM.Core.Models.DictionaryEntry? DictionaryEntry { get; set; }
 
-        // Additional metadata for decorators (e.g., hasFurigana)
+        // Additional metadata for decorators (extrinsic)
         public Dictionary<string, object> Metadata { get; init; } = new();
         
-        // Metadata
-        public int PositionInSentence { get; init; }
+        // Internal reference to flyweight key (for factory tracking)
+        internal string? FlyweightKey { get; set; }
         
         public override string ToString()
         {

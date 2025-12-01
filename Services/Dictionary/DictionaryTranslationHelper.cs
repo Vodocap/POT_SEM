@@ -1,5 +1,5 @@
 using POT_SEM.Core.Models;
-using POT_SEM.Services.Translation;
+using POT_SEM.Services.Patterns.ChainOfResponsibility;
 
 namespace POT_SEM.Services.Dictionary
 {
@@ -29,9 +29,9 @@ namespace POT_SEM.Services.Dictionary
             {
                 await _chained.SaveTranslationToDatabaseAsync(originalWord, joinedMeanings, srcLang, tgtLang, transliteration, furigana);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"⚠️ DictionaryTranslationHelper failed to persist: {ex.Message}");
+                // Failed to persist, continue
             }
         }
     }

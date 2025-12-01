@@ -1,7 +1,7 @@
 using Supabase;
 using POT_SEM.Core.Models;
 
-namespace POT_SEM.Services.Database
+namespace POT_SEM.Services.Databases
 {
     public class TextStorageService
     {
@@ -21,7 +21,6 @@ namespace POT_SEM.Services.Database
                 
                 if (_processedKeys.Contains(key))
                 {
-                    Console.WriteLine($"⏭️ Already processed: {text.Title}");
                     return false;
                 }
                 
@@ -35,7 +34,6 @@ namespace POT_SEM.Services.Database
                 
                 if (existing?.Models?.Any() == true)
                 {
-                    Console.WriteLine($"⏭️ Skipped duplicate: {text.Title}");
                     _processedKeys.Add(key);
                     return false;
                 }
@@ -59,18 +57,14 @@ namespace POT_SEM.Services.Database
                 // ✅ Check response
                 if (response?.Models?.Any() != true)
                 {
-                    Console.WriteLine($"⚠️ Insert returned empty response for: {text.Title}");
                     return false;
                 }
                 
                 _processedKeys.Add(key);
-                Console.WriteLine($"💾 Saved to Supabase: {text.Title} ({languageCode}) - ID: {response.Models.First().Id}");
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"❌ Save failed for '{text.Title}': {ex.Message}");
-                Console.WriteLine($"   Stack: {ex.StackTrace}");
                 return false;
             }
         }
@@ -79,11 +73,8 @@ namespace POT_SEM.Services.Database
         {
             if (!texts.Any())
             {
-                Console.WriteLine("⚠️ SaveTextsAsync: No texts to save");
                 return 0;
             }
-            
-            Console.WriteLine($"📝 Starting batch save: {texts.Count} texts for {languageCode}");
             
             int savedCount = 0;
             
@@ -95,15 +86,6 @@ namespace POT_SEM.Services.Database
                 }
                 
                 await Task.Delay(50);
-            }
-            
-            if (savedCount > 0)
-            {
-                Console.WriteLine($"✅ Batch save complete: {savedCount}/{texts.Count} new texts saved to Supabase");
-            }
-            else
-            {
-                Console.WriteLine($"⚠️ Batch save: 0/{texts.Count} saved (all duplicates or errors)");
             }
             
             return savedCount;
@@ -137,9 +119,8 @@ namespace POT_SEM.Services.Database
                     NewestText = texts.OrderByDescending(t => t.CreatedAt).FirstOrDefault()?.CreatedAt
                 };
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"❌ Stats fetch failed: {ex.Message}");
                 return new DatabaseStats();
             }
         }

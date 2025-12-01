@@ -1,8 +1,8 @@
 @page "/read/{sourceLang}/{targetLang}/{textId}"
 @implements IDisposable
 @using POT_SEM.Core.Models
-@using POT_SEM.Services.Builders
-@using POT_SEM.Services.Processing
+@using POT_SEM.Services.Patterns.Factory
+@using POT_SEM.Services.Patterns.Facade
 @inject TextProviderBuilder Builder
 @inject TextProcessingFacade Facade
 @inject NavigationManager Navigation
@@ -48,8 +48,24 @@
         </div>
     }
     
+    <!-- Loading Screen -->
+    @if (_isLoadingTranslations && _processedText != null)
+    {
+        <div class="loading-overlay">
+            <div class="loading-card">
+                <div class="spinner"></div>
+                <h3>🌐 Processing Translation</h3>
+                <p class="loading-message">@_loadingProgress</p>
+                <p class="loading-hint">
+                    ✨ Please wait for a more pleasant reading experience...<br/>
+                    We're translating the text and adding helpful annotations.
+                </p>
+            </div>
+        </div>
+    }
+    
     <!-- Reading Content -->
-    @if (_processedText != null)
+    @if (_processedText != null && !_isLoadingTranslations)
     {
         <div class="reading-content">
             <div class="stats">
@@ -159,6 +175,8 @@
     private string? _errorMessage = null;
     private Text? _originalText;
     private ProcessedText? _processedText;
+    private bool _isLoadingTranslations = false;
+    private string _loadingProgress = "Preparing text...";
     
     private HashSet<int> _loadingSentences = new();
 
@@ -185,10 +203,9 @@
                 _ = Task.Run(async () => { await Task.Delay(3000); sentenceStatus.Remove(sentence.Index); StateHasChanged(); });
             }
         }
-        catch (Exception ex)
+        catch
         {
             sentenceStatus[sentence.Index] = "fail";
-            Console.WriteLine($"❌ TranslateSentenceNow failed: {ex.Message}");
             _ = Task.Run(async () => { await Task.Delay(3000); sentenceStatus.Remove(sentence.Index); StateHasChanged(); });
         }
         finally
@@ -196,6 +213,49 @@
             _loadingSentences.Remove(sentence.Index);
             StateHasChanged();
         }
+    }
+    
+    private async Task TranslateWordsLazilyAsync(ProcessedText processedText)
+    {
+        // Translate words one by one (not batch) after page is loaded
+        Console.WriteLine("🔄 Starting lazy word translation...");
+        var wordsTranslated = 0;
+        
+        foreach (var sentence in processedText.Sentences)
+        {
+            foreach (var word in sentence.Words)
+            {
+                if (word.IsPunctuation || !string.IsNullOrEmpty(word.Translation)) 
+                    continue;
+                
+                try
+                {
+                    var translation = await Facade.TranslateWordAsync(word.Original, SourceLang, TargetLang);
+                    if (!string.IsNullOrEmpty(translation))
+                    {
+                        word.Translation = translation;
+                        wordsTranslated++;
+                        
+                        // Update UI every 5 words to show progress
+                        if (wordsTranslated % 5 == 0)
+                        {
+                            await InvokeAsync(StateHasChanged);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Word translation failed, continue
+                }
+                
+                // Small delay to avoid overwhelming the API
+                await Task.Delay(50);
+            }
+        }
+        
+        // Final UI update
+        await InvokeAsync(StateHasChanged);
+        Console.WriteLine($"✅ Lazy-loaded {wordsTranslated} word translations");
     }
 
     private Dictionary<int, string> sentenceStatus = new();
@@ -233,8 +293,6 @@
         
         try
         {
-            Console.WriteLine($"📖 Loading text: {TextId} ({SourceLang} → {TargetLang})");
-            
             // STEP 1: Load original text by TextId (attempt to fetch a batch and find the requested id)
             var difficulty = ParseDifficulty(TextId);
             var provider = Builder.ForLanguage(SourceLang).ForDifficulty(difficulty).Build();
@@ -252,8 +310,6 @@
             {
                 throw new Exception("Text not found");
             }
-            
-            Console.WriteLine($"✅ Loaded text: '{_originalText.Title}'");
             
             // STEP 2: Create initial processed text with just the original content (no translations yet)
             // Parse sentences immediately to show structure
@@ -295,7 +351,8 @@
                 Sentences = sentences
             };
             
-            // Show text immediately
+            // Show text immediately with loading overlay
+            _isLoadingTranslations = true;
             StateHasChanged();
             
             // STEP 3: Process text in background (translations, transliterations, etc.)
@@ -303,22 +360,40 @@
             {
                 try
                 {
+                    // Subscribe to progress updates
+                    void ProgressHandler(string message)
+                    {
+                        _loadingProgress = message;
+                        InvokeAsync(StateHasChanged);
+                    }
+                    
+                    Facade.OnProgress += ProgressHandler;
+                    
                     var processed = await Facade.ProcessTextAsync(_originalText, SourceLang, TargetLang);
                     _processedText = processed;
                     
-                    Console.WriteLine($"✅ Text processed: {_processedText.TotalSentences} sentences, {_processedText.TotalWords} words");
+                    Facade.OnProgress -= ProgressHandler;
+                    
+                    _isLoadingTranslations = false;
                     await InvokeAsync(StateHasChanged);
+                    
+                    // STEP 4: Start lazy-loading word translations one by one
+                    _ = Task.Run(async () =>
+                    {
+                        await TranslateWordsLazilyAsync(processed);
+                    });
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ Background processing error: {ex.Message}");
+                    _isLoadingTranslations = false;
+                    _errorMessage = $"Translation processing failed: {ex.Message}";
+                    await InvokeAsync(StateHasChanged);
                 }
             });
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
-            Console.WriteLine($"❌ Error loading text: {ex.Message}");
         }
     }
     
@@ -364,18 +439,10 @@
 
                 // Call the new JS batch applier which will both patch DOM and notify Blazor
                 await Js.InvokeVoidAsync("applyFuriganaToPendingAndNotify", _dotNetRef);
-
-                // Debug: count transliterations assigned (after potential batch)
-                try
-                {
-                    var count = _processedText?.Sentences.SelectMany(s => s.Words).Count(w => !string.IsNullOrEmpty(w.Transliteration)) ?? 0;
-                    Console.WriteLine($"[Debug] Transliteration assigned count: {count}");
-                }
-                catch { }
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[Debug] OnAfterRender JS call failed: {ex.Message}");
+                // OnAfterRender JS call failed
             }
         }
     }
@@ -418,9 +485,9 @@
             // Trigger re-render
             InvokeAsync(StateHasChanged);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"[JSInvokable] ReceiveFuriganaBatch failed: {ex.Message}");
+            // ReceiveFuriganaBatch failed
         }
 
         return Task.CompletedTask;
@@ -552,6 +619,64 @@
         background: #fadbd8;
         border-left: 4px solid #e74c3c;
         color: #c0392b;
+    }
+    
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        backdrop-filter: blur(5px);
+    }
+    
+    .loading-card {
+        background: white;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        text-align: center;
+        max-width: 500px;
+    }
+    
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid #e0e0e0;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1.5rem;
+    }
+    
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .loading-card h3 {
+        margin: 0 0 1rem;
+        color: #2c3e50;
+        font-size: 1.5rem;
+    }
+    
+    .loading-message {
+        color: #3498db;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin: 0.5rem 0;
+    }
+    
+    .loading-hint {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin-top: 1.5rem;
+        line-height: 1.6;
     }
     
     .btn-retry {

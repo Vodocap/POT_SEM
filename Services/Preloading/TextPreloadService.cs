@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using POT_SEM.Core.Models;
 using POT_SEM.Core.Interfaces;
-using POT_SEM.Services.Builders;
+using POT_SEM.Services.Patterns.Factory;
 
 namespace POT_SEM.Services.Preloading
 {
@@ -26,8 +26,6 @@ namespace POT_SEM.Services.Preloading
         /// </summary>
         public async Task PreloadAllAsync(int textsPerCombination = 10)
         {
-            Console.WriteLine("🚀 Starting text preload...");
-
             var languages = new[] { "en", "sk", "ar", "ja" };
             var difficulties = new[] 
             { 
@@ -49,7 +47,6 @@ namespace POT_SEM.Services.Preloading
             await Task.WhenAll(tasks);
 
             var stats = _cache.GetStats();
-            Console.WriteLine($"✅ Preload complete! Total cached: {stats.TotalCachedTexts} texts");
         }
 
         /// <summary>
@@ -62,8 +59,6 @@ namespace POT_SEM.Services.Preloading
         {
             try
             {
-                Console.WriteLine($"📦 Preloading {count} {difficulty} texts for {languageCode}...");
-
                 var provider = _builder
                     .ForLanguage(languageCode)
                     .ForDifficulty(difficulty)
@@ -74,16 +69,11 @@ namespace POT_SEM.Services.Preloading
                 if (texts.Any())
                 {
                     _cache.CacheTexts(languageCode, difficulty, texts);
-                    Console.WriteLine($"  ✅ Cached {texts.Count} texts ({languageCode} - {difficulty})");
-                }
-                else
-                {
-                    Console.WriteLine($"  ⚠️ No texts fetched ({languageCode} - {difficulty})");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"  ❌ Preload failed ({languageCode} - {difficulty}): {ex.Message}");
+                // Preload failed, continue
             }
         }
     }

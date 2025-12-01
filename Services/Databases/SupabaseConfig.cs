@@ -1,6 +1,6 @@
 using System.Net.Http.Json;
 
-namespace POT_SEM.Services.Database
+namespace POT_SEM.Services.Databases
 {
     public class SupabaseConfig
     {
@@ -17,25 +17,21 @@ namespace POT_SEM.Services.Database
             try
             {
                 var devConfig = await LoadFromFileAsync(http, "appsettings.Development.json");
-                Console.WriteLine("✅ Using Development Supabase config");
                 return devConfig;
             }
             catch (HttpRequestException)
             {
                 // Development file doesn't exist, try production
-                Console.WriteLine("ℹ️ Development config not found, trying production...");
             }
             
             // Fallback to production config (GitHub Pages)
             try
             {
                 var prodConfig = await LoadFromFileAsync(http, "appsettings.json");
-                Console.WriteLine("✅ Using Production Supabase config");
                 return prodConfig;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Failed to load Supabase config: {ex.Message}");
                 throw new Exception("Supabase configuration is missing or invalid!", ex);
             }
         }

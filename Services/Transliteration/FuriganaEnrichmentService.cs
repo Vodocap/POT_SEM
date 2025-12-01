@@ -93,20 +93,12 @@ namespace POT_SEM.Services.Transliteration
                 return text;
             }
 
-            Console.WriteLine($"[Furigana] Processing {text.Sentences.Count} sentences");
-
             foreach (var sentence in text.Sentences)
             {
-                var preview = sentence.OriginalText != null && sentence.OriginalText.Length > 50 
-                    ? sentence.OriginalText.Substring(0, 50) + "..." 
-                    : sentence.OriginalText ?? "";
-                Console.WriteLine($"[Furigana] Sentence: {preview}");
-                
                 foreach (var word in sentence.Words)
                 {
                     if (word.IsPunctuation)
                     {
-                        Console.WriteLine($"[Furigana] Skipping punctuation: '{word.Original}'");
                         continue;
                     }
 
@@ -115,51 +107,34 @@ namespace POT_SEM.Services.Transliteration
                     {
                         word.Furigana = reading;
                         word.Metadata["hasFurigana"] = true;
-                        Console.WriteLine($"[Furigana] Static dictionary: '{word.Original}' => '{reading}'");
                     }
 
                     // Check if word contains Kanji characters
                     bool hasKanji = word.Original.Any(c => c >= '\u4E00' && c <= '\u9FFF');
-                    Console.WriteLine($"[Furigana] Word '{word.Original}' hasKanji: {hasKanji}, Furigana: '{word.Furigana}'");
 
                     // Step 2: If word has kanji and no furigana, call API (if available)
                     if (hasKanji && string.IsNullOrEmpty(word.Furigana) && _httpClient != null)
                     {
-                        Console.WriteLine($"[Furigana] Calling API for kanji word: '{word.Original}'");
-                        
                         try
                         {
                             var response = await _httpClient.PostAsJsonAsync(FUNGANA_API_URL, new { text = word.Original });
-                            
-                            Console.WriteLine($"[Furigana] API response status: {response.StatusCode}");
                             
                             if (response.IsSuccessStatusCode)
                             {
                                 var result = await response.Content.ReadFromJsonAsync<FunganaResponse>();
                                 
-                                Console.WriteLine($"[Furigana] API result - Hiragana: '{result?.Hiragana}', Error: '{result?.Error}'");
-                                
                                 if (result?.Hiragana != null)
                                 {
                                     var hiragana = result.Hiragana;
-                                    Console.WriteLine($"[Furigana] Fungana API: '{word.Original}' => '{hiragana}'");
                                     
                                     word.Furigana = hiragana;
                                     word.Metadata["hasFurigana"] = true;
                                 }
-                                else if (result?.Error != null)
-                                {
-                                    Console.WriteLine($"[Furigana] API error for '{word.Original}': {result.Error}");
-                                }
-                            }
-                            else
-                            {
-                                Console.WriteLine($"[Furigana] API request failed with status {response.StatusCode} for '{word.Original}'");
                             }
                         }
-                        catch (Exception ex)
+                        catch
                         {
-                            Console.WriteLine($"[Furigana] Fungana API call failed for '{word.Original}': {ex.Message}");
+                            // Fungana API call failed
                         }
                     }
 
@@ -176,18 +151,16 @@ namespace POT_SEM.Services.Transliteration
                             if (!string.IsNullOrEmpty(romaji))
                             {
                                 word.Transliteration = romaji;
-                                Console.WriteLine($"[Furigana] Transliteration for '{word.Original}' => '{romaji}' (from '{input}')");
                             }
                         }
-                        catch (Exception ex)
+                        catch
                         {
-                            Console.WriteLine($"[Furigana] Transliteration failed for '{word.Original}': {ex.Message}");
+                            // Transliteration failed
                         }
                     }
                 }
             }
 
-            Console.WriteLine($"[Furigana] Decoration complete");
             return text;
         }
 

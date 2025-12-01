@@ -1,8 +1,8 @@
 @page "/"
 @page "/texts"
 @using POT_SEM.Core.Models
-@using POT_SEM.Core.BridgeAbstractions
-@using POT_SEM.Services.Builders
+@using POT_SEM.Services.Patterns.Bridge
+@using POT_SEM.Services.Patterns.Factory
 @inject TextProviderBuilder Builder
 @inject NavigationManager Navigation
 
@@ -130,8 +130,6 @@ else if (!isLoading && texts == null)
         
         try
         {
-            Console.WriteLine($"🔍 Loading {count} {selectedDifficulty} texts in {selectedLanguage}...");
-            
             // 🔥 BRIDGE + BUILDER + STRATEGY PATTERN!
             var provider = Builder
                 .ForLanguage(selectedLanguage)
@@ -139,13 +137,10 @@ else if (!isLoading && texts == null)
                 .Build();
             
             texts = await provider.GetTextsAsync(topic: topic, count: count);
-            
-            Console.WriteLine($"✅ Loaded {texts.Count} texts");
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
-            Console.WriteLine($"❌ Error: {ex.Message}");
         }
         finally
         {
@@ -166,7 +161,6 @@ else if (!isLoading && texts == null)
         // Navigate to: /read/{sourceLang}/{targetLang}/{textId}
         var url = $"/read/{sourceLang}/{targetLang}/{encodedId}";
         
-        Console.WriteLine($"📖 Navigating to reading page: {url}");
         Navigation.NavigateTo(url);
     }
     

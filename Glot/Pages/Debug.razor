@@ -1,8 +1,8 @@
 @page "/debug"
 @using POT_SEM.Core.Models
-@using POT_SEM.Core.BridgeAbstractions
+@using POT_SEM.Services.Patterns.Bridge
 @using POT_SEM.Core.Interfaces
-@using POT_SEM.Services.Builders
+@using POT_SEM.Services.Patterns.Factory
 @using System.Text.Json
 @inject TextProviderBuilder Builder
 @inject IServiceProvider ServiceProvider

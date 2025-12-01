@@ -36,7 +36,6 @@ namespace POT_SEM.Services.Dictionary
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"❌ API Dictionary error: {response.StatusCode} for word '{word}'");
                     return null;
                 }
 
@@ -55,14 +54,12 @@ namespace POT_SEM.Services.Dictionary
                     Meanings = result.Meanings
                 };
             }
-            catch (HttpRequestException ex)
+            catch (HttpRequestException)
             {
-                Console.WriteLine($"❌ API Dictionary HTTP error for '{word}': {ex.Message}");
                 return null;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"❌ API Dictionary error for '{word}': {ex.Message}");
                 return null;
             }
         }

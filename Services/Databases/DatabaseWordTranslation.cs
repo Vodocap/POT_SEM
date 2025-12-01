@@ -2,7 +2,7 @@ using Postgrest.Attributes;
 using Postgrest.Models;
 using System.Text.Json.Serialization;
 
-namespace POT_SEM.Services.Database
+namespace POT_SEM.Services.Databases
 {
     /// <summary>
     /// Database model for word translations (Supabase table: word_translations)

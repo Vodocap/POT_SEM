@@ -2,7 +2,7 @@ using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
 using System.Text.Json;
 
-namespace POT_SEM.Services.TextFetchStrategies
+namespace POT_SEM.Core.StrategyImplementations
 {
     /// <summary>
     /// Fetch strategy pre Project Gutenberg (classic literature)
@@ -31,13 +31,10 @@ namespace POT_SEM.Services.TextFetchStrategies
                 // Build Gutenberg API URL
                 var url = $"{GUTENBERG_API}?languages={languageCode}&page=1&page_size={maxResults}";
 
-                Console.WriteLine($"📚 {SourceName}: {url}");
-
                 var response = await _httpClient.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"❌ {SourceName}: API returned {response.StatusCode}");
                     return texts;
                 }
 
@@ -63,11 +60,10 @@ namespace POT_SEM.Services.TextFetchStrategies
                     }
                 }
 
-                Console.WriteLine($"✅ {SourceName}: Got {texts.Count} books");
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"❌ {SourceName} error: {ex.Message}");
+                // Strategy failed
             }
 
             return texts;
@@ -133,9 +129,8 @@ namespace POT_SEM.Services.TextFetchStrategies
                     }
                 };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"⚠️ Failed to parse book: {ex.Message}");
                 return null;
             }
         }
