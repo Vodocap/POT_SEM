@@ -5,15 +5,15 @@ using POT_SEM.Services.Dictionary;
 namespace POT_SEM.Services.Translation
 {
     /// <summary>
-    /// STRATEGY PATTERN - Dictionary-based translation (Wiktionary)
-    /// Provides word meanings from dictionary. Does NOT translate sentences (returns null).
+    /// STRATEGY PATTERN - Dictionary-based translation (AI API)
+    /// Provides word meanings from API dictionary. Does NOT translate sentences (returns null).
     /// </summary>
     public class DictionaryTranslationStrategy : ITranslationStrategy
     {
         private readonly TranslationFlyweightFactory _flyweight;
         private readonly DictionaryTranslationHelper? _helper;
 
-        public string StrategyName => "Dictionary (Wiktionary)";
+        public string StrategyName => "Dictionary (AI API)";
 
         public DictionaryTranslationStrategy(
             TranslationFlyweightFactory flyweight,
@@ -30,14 +30,14 @@ namespace POT_SEM.Services.Translation
                 return null;
             }
 
-            Console.WriteLine($"📚 DICTIONARY lookup: '{word}' (target lang: {targetLang})");
+            Console.WriteLine($"📚 DICTIONARY lookup: '{word}' (source: {sourceLang}, target: {targetLang})");
 
             // Check flyweight dictionary cache first
-            var dictEntry = _flyweight.GetDictionaryEntry(targetLang, word);
+            var dictEntry = _flyweight.GetDictionaryEntry(sourceLang, word);
             if (dictEntry == null)
             {
-                // Fetch from Wiktionary if not cached
-                var fetched = await _flyweight.GetDictionaryEntriesBatchAsync(new List<string> { word }, targetLang);
+                // Fetch from API if not cached
+                var fetched = await _flyweight.GetDictionaryEntriesBatchAsync(new List<string> { word }, sourceLang, targetLang);
                 fetched.TryGetValue(word, out dictEntry);
             }
 
@@ -69,10 +69,10 @@ namespace POT_SEM.Services.Translation
             var results = new Dictionary<string, string>();
             var wordsList = words.ToList();
 
-            Console.WriteLine($"📚 DICTIONARY batch: {wordsList.Count} words");
+            Console.WriteLine($"📚 DICTIONARY batch: {wordsList.Count} words (source: {sourceLang}, target: {targetLang})");
 
             // Fetch all dictionary entries in one batch
-            var entries = await _flyweight.GetDictionaryEntriesBatchAsync(wordsList, targetLang);
+            var entries = await _flyweight.GetDictionaryEntriesBatchAsync(wordsList, sourceLang, targetLang);
 
             foreach (var word in wordsList)
             {

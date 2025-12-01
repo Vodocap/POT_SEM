@@ -38,17 +38,6 @@
         }
     </div>
     
-    <!-- Loading State -->
-    @if (_isLoading)
-    {
-        <div class="loading">
-            <div class="spinner"></div>
-            <p>⏳ Processing text...</p>
-            <small>Parsing sentences, translating words...</small>
-        </div>
-    }
-        <!-- Note: Furigana is provided by server-side decorators -->
-    
     <!-- Error State -->
     @if (_errorMessage != null)
     {
@@ -60,7 +49,7 @@
     }
     
     <!-- Reading Content -->
-    @if (_processedText != null && !_isLoading)
+    @if (_processedText != null)
     {
         <div class="reading-content">
             <div class="stats">
@@ -76,11 +65,7 @@
                 <div class="sentence" id="sentence-@sentence.Index">
                     <div class="sentence-number">@(sentence.Index + 1)
                         <button class="btn btn-sm btn-link sentence-translate-btn" title="Translate sentence" @onclick="() => TranslateSentenceNow(sentence)" disabled="@IsSentenceLoading(sentence.Index)">
-                            @if (IsSentenceLoading(sentence.Index)) {
-                                <svg class="icon-spinner" width="12" height="12" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="25" r="20" stroke="#3498db" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
-                            } else {
-                                <svg class="icon-translate" width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#5d6d7e" d="M12 2v2a8 8 0 1 1-8 8H2a10 10 0 1 0 10-10V2z"></path></svg>
-                            }
+                            <svg class="icon-translate" width="14" height="14" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#5d6d7e" d="M12 2v2a8 8 0 1 1-8 8H2a10 10 0 1 0 10-10V2z"></path></svg>
                         </button>
                         @if (sentenceStatus.TryGetValue(sentence.Index, out var st) && !string.IsNullOrEmpty(st))
                         {
@@ -171,7 +156,6 @@
     [Parameter] public string TargetLang { get; set; } = "sk";
     [Parameter] public string TextId { get; set; } = "";
     
-    private bool _isLoading = true;
     private string? _errorMessage = null;
     private Text? _originalText;
     private ProcessedText? _processedText;
@@ -245,7 +229,6 @@
     
     private async Task LoadText()
     {
-        _isLoading = true;
         _errorMessage = null;
         
         try
@@ -272,29 +255,70 @@
             
             Console.WriteLine($"✅ Loaded text: '{_originalText.Title}'");
             
-            // STEP 2: Process text (FACADE orchestrates: Parse + Translate)
-            _processedText = await Facade.ProcessTextAsync(
-                _originalText,
-                SourceLang,
-                TargetLang);
-
-            // Client-side furigana pass for words marked as pending (only in browser)
-            if (SourceLang == "ja")
+            // STEP 2: Create initial processed text with just the original content (no translations yet)
+            // Parse sentences immediately to show structure
+            var sentenceTexts = _originalText.Content.Split(new[] { '.', '!', '?', '。', '！', '？' }, StringSplitOptions.RemoveEmptyEntries);
+            var sentences = new List<ProcessedSentence>();
+            
+            for (int i = 0; i < sentenceTexts.Length; i++)
             {
-                // Check readiness first
-                    // Server-side decorators (FuriganaDecorator + Heuristic fallback) handle furigana for Japanese
+                var sentenceText = sentenceTexts[i].Trim();
+                if (string.IsNullOrWhiteSpace(sentenceText)) continue;
+                
+                var wordTexts = sentenceText.Split(new[] { ' ', '　' }, StringSplitOptions.RemoveEmptyEntries);
+                var words = new List<ProcessedWord>();
+                
+                for (int j = 0; j < wordTexts.Length; j++)
+                {
+                    words.Add(new ProcessedWord
+                    {
+                        Original = wordTexts[j],
+                        Normalized = wordTexts[j].ToLower(),
+                        Index = j,
+                        PositionInSentence = j
+                    });
+                }
+                
+                sentences.Add(new ProcessedSentence
+                {
+                    Index = i,
+                    OriginalText = sentenceText,
+                    Words = words
+                });
             }
             
-            Console.WriteLine($"✅ Text processed: {_processedText.TotalSentences} sentences, {_processedText.TotalWords} words");
+            _processedText = new ProcessedText
+            {
+                OriginalText = _originalText,
+                SourceLanguage = SourceLang,
+                TargetLanguage = TargetLang,
+                Sentences = sentences
+            };
+            
+            // Show text immediately
+            StateHasChanged();
+            
+            // STEP 3: Process text in background (translations, transliterations, etc.)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var processed = await Facade.ProcessTextAsync(_originalText, SourceLang, TargetLang);
+                    _processedText = processed;
+                    
+                    Console.WriteLine($"✅ Text processed: {_processedText.TotalSentences} sentences, {_processedText.TotalWords} words");
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Background processing error: {ex.Message}");
+                }
+            });
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
             Console.WriteLine($"❌ Error loading text: {ex.Message}");
-        }
-        finally
-        {
-            _isLoading = false;
         }
     }
     
@@ -516,26 +540,6 @@
     
     .difficulty-advanced {
         background: #e74c3c;
-    }
-    
-    .loading {
-        text-align: center;
-        padding: 3rem;
-    }
-    
-    .spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 1rem;
-    }
-    
-    @@keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
     }
     
     .alert {
@@ -762,7 +766,6 @@
 .sentence-number .sentence-translate-btn { display: none; }
 .sentence:hover .sentence-number .sentence-translate-btn { display: inline-block; }
 
-.icon-spinner { animation: spin 1s linear infinite; }
 .icon-translate { opacity: 0.9; }
 
 .status-ok { background:#2ecc71; }

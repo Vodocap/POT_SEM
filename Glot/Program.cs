@@ -111,12 +111,12 @@ builder.Services.AddScoped<POT_SEM.Services.Dictionary.DictionaryTranslationHelp
     return new POT_SEM.Services.Dictionary.DictionaryTranslationHelper(chainedService);
 });
 
-// Wiktionary service and Translation flyweight factory (now includes dictionary cache)
-builder.Services.AddScoped(sp => new POT_SEM.Services.Dictionary.WiktionaryService(sp.GetRequiredService<HttpClient>()));
+// API Dictionary service and Translation flyweight factory (now includes dictionary cache)
+builder.Services.AddScoped(sp => new POT_SEM.Services.Dictionary.ApiDictionaryService(sp.GetRequiredService<HttpClient>()));
 builder.Services.AddScoped<TranslationFlyweightFactory>(sp =>
 {
-    var wiki = sp.GetService<POT_SEM.Services.Dictionary.WiktionaryService>();
-    return wiki != null ? new TranslationFlyweightFactory(wiki) : new TranslationFlyweightFactory();
+    var apiDict = sp.GetService<POT_SEM.Services.Dictionary.ApiDictionaryService>();
+    return apiDict != null ? new TranslationFlyweightFactory(apiDict) : new TranslationFlyweightFactory();
 });
 
 // Transliteration services (Arabic, Japanese)

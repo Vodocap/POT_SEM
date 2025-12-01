@@ -19,13 +19,13 @@ namespace POT_SEM.Services.Translation
         private readonly ConcurrentDictionary<string, string> _furiganaCache = new();
         // Key: "lang:word" -> Value: DictionaryEntry (flyweight for dictionary meanings)
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, POT_SEM.Core.Models.DictionaryEntry> _dictionaryCache = new();
-        private readonly POT_SEM.Services.Dictionary.WiktionaryService? _wiktionaryService;
+        private readonly POT_SEM.Services.Dictionary.ApiDictionaryService? _apiDictionaryService;
 
         public TranslationFlyweightFactory() { }
 
-        public TranslationFlyweightFactory(POT_SEM.Services.Dictionary.WiktionaryService wiktionaryService)
+        public TranslationFlyweightFactory(POT_SEM.Services.Dictionary.ApiDictionaryService apiDictionaryService)
         {
-            _wiktionaryService = wiktionaryService;
+            _apiDictionaryService = apiDictionaryService;
         }
         
         /// <summary>
@@ -185,26 +185,29 @@ namespace POT_SEM.Services.Translation
             _dictionaryCache.TryAdd(key, entry);
         }
 
-        public async Task<Dictionary<string, POT_SEM.Core.Models.DictionaryEntry>> GetDictionaryEntriesBatchAsync(List<string> words, string lang)
+        public async Task<Dictionary<string, POT_SEM.Core.Models.DictionaryEntry>> GetDictionaryEntriesBatchAsync(
+            List<string> words, 
+            string sourceLang, 
+            string targetLang)
         {
             var results = new Dictionary<string, POT_SEM.Core.Models.DictionaryEntry>();
             var toFetch = new List<string>();
 
             foreach (var word in words)
             {
-                var key = CreateDictionaryKey(lang, word);
+                var key = CreateDictionaryKey(sourceLang, word);
                 if (_dictionaryCache.TryGetValue(key, out var cached))
                     results[word] = cached;
                 else
                     toFetch.Add(word);
             }
 
-            if (toFetch.Any() && _wiktionaryService != null)
+            if (toFetch.Any() && _apiDictionaryService != null)
             {
-                var fetched = await _wiktionaryService.LookupBatchAsync(toFetch, lang).ConfigureAwait(false);
+                var fetched = await _apiDictionaryService.LookupBatchAsync(toFetch, sourceLang, targetLang).ConfigureAwait(false);
                 foreach (var kv in fetched)
                 {
-                    var key = CreateDictionaryKey(lang, kv.Key);
+                    var key = CreateDictionaryKey(sourceLang, kv.Key);
                     _dictionaryCache[key] = kv.Value;
                     results[kv.Key] = kv.Value;
                 }

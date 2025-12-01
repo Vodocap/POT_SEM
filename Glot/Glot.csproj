@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorEnableCompression>false</BlazorEnableCompression>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,7 +20,9 @@
 
   <ItemGroup>
     <Content Remove="wwwroot\appsettings.json" />
+    <Content Remove="wwwroot\appsettings.Development.json" />
     <None Include="wwwroot\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="wwwroot\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
