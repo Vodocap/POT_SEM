@@ -4,11 +4,16 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// ABSTRACT FACTORY - Concrete Factory for English
+    /// ABSTRACT FACTORY - Concrete Factory for English (Singleton)
     /// Creates 2-layer word displays: Original + Translation
     /// </summary>
     public class EnglishWordDisplayFactory : IWordDisplayFactory
     {
+        private static readonly EnglishWordDisplayFactory _instance = new EnglishWordDisplayFactory();
+        public static EnglishWordDisplayFactory Instance => _instance;
+        
+        private EnglishWordDisplayFactory() { }
+        
         public string LanguageCode => "en";
         
         public int LayerCount => 2;
@@ -46,11 +51,16 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
     }
     
     /// <summary>
-    /// ABSTRACT FACTORY - Concrete Factory for Slovak
+    /// ABSTRACT FACTORY - Concrete Factory for Slovak (Singleton)
     /// Same structure as English (2 layers)
     /// </summary>
     public class SlovakWordDisplayFactory : IWordDisplayFactory
     {
+        private static readonly SlovakWordDisplayFactory _instance = new SlovakWordDisplayFactory();
+        public static SlovakWordDisplayFactory Instance => _instance;
+        
+        private SlovakWordDisplayFactory() { }
+        
         public string LanguageCode => "sk";
         
         public int LayerCount => 2;

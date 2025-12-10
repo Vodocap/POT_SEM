@@ -63,7 +63,7 @@
     
     private string GetTooltipPosition()
     {
-        return SourceLang == "ar" ? "tooltip-right" : "tooltip-top";
+        return "tooltip-top";
     }
 }
 
@@ -122,7 +122,9 @@
         box-shadow: 0 4px 16px rgba(0,0,0,0.2);
         z-index: 1000;
         min-width: 200px;
-        white-space: nowrap;
+        max-width: 300px;
+        white-space: normal;
+        word-wrap: break-word;
     }
     
     .tooltip-top {

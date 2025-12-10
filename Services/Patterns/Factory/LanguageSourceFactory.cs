@@ -1,6 +1,6 @@
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
-using POT_SEM.Services.Patterns.ChainOfResponsibility;
+using POT_SEM.Services.Patterns.ChainOfResponsibility.TextFetching;
 using POT_SEM.Services.Patterns.Strategy.TextFetch;
 using POT_SEM.Services.Patterns.Decorator.TextSource;
 using POT_SEM.Services.Databases;
@@ -107,25 +107,20 @@ namespace POT_SEM.Services.Patterns.Factory
             var gutenberg = config.HasGutenberg 
                 ? new GutenbergStrategy(_httpClient) 
                 : null;
+            
+            // Create database strategy if available
+            var dbStrategy = _supabase != null 
+                ? new DatabaseTextFetchStrategy(_supabase, config.LanguageCode)
+                : null;
 
-            // Build difficulty-based chain map
-            var chainMap = BuildChainMap(wiki, simpleWiki, gutenberg, config.LanguageCode, topicStrategy);
-
-            // Add database as first priority for all levels
-            if (_supabase != null)
-            {
-                var dbStrategy = new DatabaseTextFetchStrategy(_supabase, config.LanguageCode);
-                AddDatabaseToChains(chainMap, dbStrategy, config.LanguageCode, topicStrategy);
-            }
+            // Build difficulty-based chain map (with database as first handler if available)
+            var chainMap = BuildChainMap(wiki, simpleWiki, gutenberg, dbStrategy, config.LanguageCode, topicStrategy);
 
             // Build default chain
             TextFetchChainHandler defaultChain = new StrategyChainHandler(wiki, config.LanguageCode, topicStrategy);
-            if (_supabase != null)
+            if (dbStrategy != null)
             {
-                var dbHandler = new StrategyChainHandler(
-                    new DatabaseTextFetchStrategy(_supabase, config.LanguageCode),
-                    config.LanguageCode,
-                    topicStrategy);
+                var dbHandler = new StrategyChainHandler(dbStrategy, config.LanguageCode, topicStrategy);
                 dbHandler.SetNext(defaultChain);
                 defaultChain = dbHandler;
             }
@@ -150,11 +145,13 @@ namespace POT_SEM.Services.Patterns.Factory
 
         /// <summary>
         /// Builds chain map for different difficulty levels
+        /// Database is prepended as first handler if available
         /// </summary>
         private Dictionary<DifficultyLevel, TextFetchChainHandler> BuildChainMap(
             ITextFetchStrategy wiki,
             ITextFetchStrategy? simpleWiki,
             ITextFetchStrategy? gutenberg,
+            ITextFetchStrategy? database,
             string languageCode,
             ITopicGenerationStrategy topicStrategy)
         {
@@ -166,15 +163,16 @@ namespace POT_SEM.Services.Patterns.Factory
             {
                 var simpleHandler = new StrategyChainHandler(simpleWiki, languageCode, topicStrategy);
                 simpleHandler.SetNext(beginnerWiki);
-                map[DifficultyLevel.Beginner] = simpleHandler;
+                map[DifficultyLevel.Beginner] = PrependDatabase(simpleHandler, database, languageCode, topicStrategy);
             }
             else
             {
-                map[DifficultyLevel.Beginner] = beginnerWiki;
+                map[DifficultyLevel.Beginner] = PrependDatabase(beginnerWiki, database, languageCode, topicStrategy);
             }
 
             // Intermediate chain
-            map[DifficultyLevel.Intermediate] = new StrategyChainHandler(wiki, languageCode, topicStrategy);
+            var intermediateHandler = new StrategyChainHandler(wiki, languageCode, topicStrategy);
+            map[DifficultyLevel.Intermediate] = PrependDatabase(intermediateHandler, database, languageCode, topicStrategy);
 
             // Advanced chain
             var advancedWiki = new StrategyChainHandler(wiki, languageCode, topicStrategy);
@@ -182,32 +180,33 @@ namespace POT_SEM.Services.Patterns.Factory
             {
                 var gutenbergHandler = new StrategyChainHandler(gutenberg, languageCode, topicStrategy);
                 gutenbergHandler.SetNext(advancedWiki);
-                map[DifficultyLevel.Advanced] = gutenbergHandler;
+                map[DifficultyLevel.Advanced] = PrependDatabase(gutenbergHandler, database, languageCode, topicStrategy);
             }
             else
             {
-                map[DifficultyLevel.Advanced] = advancedWiki;
+                map[DifficultyLevel.Advanced] = PrependDatabase(advancedWiki, database, languageCode, topicStrategy);
             }
 
             return map;
         }
 
         /// <summary>
-        /// Adds database strategy as first handler in all chains
+        /// Helper to prepend database handler to an existing chain
         /// </summary>
-        private void AddDatabaseToChains(
-            Dictionary<DifficultyLevel, TextFetchChainHandler> chainMap,
-            ITextFetchStrategy dbStrategy,
+        private TextFetchChainHandler PrependDatabase(
+            TextFetchChainHandler existingChain,
+            ITextFetchStrategy? database,
             string languageCode,
             ITopicGenerationStrategy topicStrategy)
         {
-            foreach (var level in chainMap.Keys.ToList())
+            if (database == null)
             {
-                var existingChain = chainMap[level];
-                var dbHandler = new StrategyChainHandler(dbStrategy, languageCode, topicStrategy);
-                dbHandler.SetNext(existingChain);
-                chainMap[level] = dbHandler;
+                return existingChain;
             }
+
+            var dbHandler = new StrategyChainHandler(database, languageCode, topicStrategy);
+            dbHandler.SetNext(existingChain);
+            return dbHandler;
         }
     }
 }

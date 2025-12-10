@@ -41,16 +41,16 @@ namespace POT_SEM.Services.Dictionary
 
                 var result = await response.Content.ReadFromJsonAsync<ApiDictionaryResponse>();
                 
-                if (result?.Meanings == null || result.Meanings.Count == 0)
+                if (result?.Success != true || result.Meanings == null || result.Meanings.Count == 0)
                 {
                     return null;
                 }
 
                 return new DictionaryEntry
                 {
-                    Word = word,
+                    Word = result.Word ?? word,
                     LanguageCode = sourceLang,
-                    PartOfSpeech = result.PartOfSpeech,
+                    PartOfSpeech = null,
                     Meanings = result.Meanings
                 };
             }
@@ -100,11 +100,14 @@ namespace POT_SEM.Services.Dictionary
 
         private class ApiDictionaryResponse
         {
+            [JsonPropertyName("success")]
+            public bool Success { get; set; }
+            
+            [JsonPropertyName("word")]
+            public string? Word { get; set; }
+            
             [JsonPropertyName("meanings")]
             public List<string>? Meanings { get; set; }
-            
-            [JsonPropertyName("part_of_speech")]
-            public string? PartOfSpeech { get; set; }
         }
     }
 }

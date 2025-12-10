@@ -1,8 +1,7 @@
 namespace POT_SEM.Core.Models
 {
     /// <summary>
-    /// COMPOSITE PATTERN - Root (whole text)
-    /// Represents fully processed text ready for display with translations
+    /// Fully processed text ready for display with translations.
     /// </summary>
     public class ProcessedText
     {
@@ -29,7 +28,7 @@ namespace POT_SEM.Core.Models
     }
 
     /// <summary>
-    /// COMPOSITE PATTERN - Branch (sentence containing words)
+    /// Sentence containing translated words.
     /// </summary>
     public class ProcessedSentence
     {
@@ -48,23 +47,20 @@ namespace POT_SEM.Core.Models
     }
 
     /// <summary>
-    /// COMPOSITE PATTERN - Leaf (individual word)
-    /// FLYWEIGHT PATTERN - Stores intrinsic state that can be shared
-    /// This is now a lightweight reference with extrinsic state
+    /// Individual word with translation data.
     /// </summary>
     public class ProcessedWord
     {
-        // Extrinsic state (context-specific, varies per occurrence)
+        // Context-specific data (varies per occurrence)
         public required int Index { get; init; }
         public bool IsPunctuation { get; init; }
         public int PositionInSentence { get; init; }
         
-        // Intrinsic state (shared across same word)
-        // Note: These properties will be set by the Flyweight factory
+        // Shared word data (same across all occurrences)
         public required string Original { get; init; }
         public required string Normalized { get; init; }
         
-        // FLYWEIGHT: Shared data (set once, reused for all occurrences of this word)
+        // Translation data (populated by flyweight factory)
         public string? Translation { get; set; }
         public string? Transliteration { get; set; }
         public string? Furigana { get; set; }

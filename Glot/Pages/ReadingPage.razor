@@ -1,13 +1,14 @@
 @page "/read/{sourceLang}/{targetLang}/{textId}"
-@implements IDisposable
 @using POT_SEM.Core.Models
 @using POT_SEM.Services.Patterns.Factory
 @using POT_SEM.Services.Patterns.Facade
-@inject TextProviderBuilder Builder
+@using POT_SEM.Services.Patterns.Decorator.WordDisplay
+@using POT_SEM.Core.Interfaces
+@inject TextProviderFactory Builder
 @inject TextProcessingFacade Facade
 @inject NavigationManager Navigation
 
-<PageTitle>📖 Reading: @(_originalText?.Title ?? "Loading...")</PageTitle>
+<PageTitle>Reading: @(_originalText?.Title ?? "Loading...")</PageTitle>
 
 <div class="reading-container">
     <!-- Header -->
@@ -42,9 +43,9 @@
     @if (_errorMessage != null)
     {
         <div class="alert alert-danger">
-            <strong>❌ Error:</strong> @_errorMessage
+            <strong>Error:</strong> @_errorMessage
             <br/>
-            <button @onclick="LoadText" class="btn-retry">🔄 Retry</button>
+            <button @onclick="LoadText" class="btn-retry">Retry</button>
         </div>
     }
     
@@ -54,10 +55,10 @@
         <div class="loading-overlay">
             <div class="loading-card">
                 <div class="spinner"></div>
-                <h3>🌐 Processing Translation</h3>
+                <h3>Processing Translation</h3>
                 <p class="loading-message">@_loadingProgress</p>
                 <p class="loading-hint">
-                    ✨ Please wait for a more pleasant reading experience...<br/>
+                    Please wait for a more pleasant reading experience...<br/>
                     We're translating the text and adding helpful annotations.
                 </p>
             </div>
@@ -69,7 +70,7 @@
     {
         <div class="reading-content">
             <div class="stats">
-                📊 Stats: 
+                Stats: 
                 <strong>@_processedText.TotalSentences</strong> sentences, 
                 <strong>@_processedText.TotalWords</strong> words, 
                 <strong>@_processedText.UniqueWords</strong> unique
@@ -99,56 +100,7 @@
                                 }
                                 else
                                 {
-                                    var hasFuri = !string.IsNullOrEmpty(word.Furigana) || (word.Metadata.ContainsKey("hasFurigana") && word.Metadata["hasFurigana"] is bool b && b);
-
-                                    if (SourceLang == "ja" && hasFuri)
-                                    {
-                                            <span class="word-wrapper" tabIndex="0" role="button" aria-label="@GetTooltip(word)" data-transliteration="@word.Transliteration">
-                                                <ruby>
-                                                    <span>@word.Original</span>
-                                                    <rt>@(word.Furigana ?? "")</rt>
-                                                </ruby>
-                                                        <span class="word-translation">
-                                                            @if (word.DictionaryEntry?.Meanings?.Count > 0)
-                                                            {
-                                                                @string.Join("; ", word.DictionaryEntry.Meanings)
-                                                            }
-                                                            else if (!string.IsNullOrEmpty(word.Translation))
-                                                            {
-                                                                @word.Translation
-                                                            }
-                                                        </span>
-                                                @if (showTransliteration && !string.IsNullOrEmpty(word.Transliteration))
-                                                {
-                                                    <div class="word-transliteration">@word.Transliteration</div>
-                                                }
-                                            </span>
-                                    }
-                                        else
-                                        {
-                                            var pendingAttr = (word.Metadata.ContainsKey("hasFurigana") && word.Metadata["hasFurigana"] is bool has && has == false) ? "false" : "true";
-                                            <span class="word-wrapper" tabIndex="0" role="button" aria-label="@GetTooltip(word)" data-has-furigana="@pendingAttr" data-transliteration="@word.Transliteration">
-                                                <span class="word-original">@word.Original</span>
-                                                @if (word.DictionaryEntry?.Meanings?.Count > 0 || !string.IsNullOrEmpty(word.Translation))
-                                                {
-                                                    <span class="word-translation">
-                                                        @if (word.DictionaryEntry?.Meanings?.Count > 0)
-                                                        {
-                                                            @string.Join("; ", word.DictionaryEntry.Meanings)
-                                                        }
-                                                        else if (!string.IsNullOrEmpty(word.Translation))
-                                                        {
-                                                            @word.Translation
-                                                        }
-                                                    </span>
-                                                }
-                                                
-                                                @if (showTransliteration && !string.IsNullOrEmpty(word.Transliteration))
-                                                {
-                                                    <div class="word-transliteration">@word.Transliteration</div>
-                                                }
-                                            </span>
-                                        }
+                                    <POT_SEM.Components.WordComponent Display="@GetWordDisplay(word)" SourceLang="@SourceLang" />
                                 }
                             }
                         </div>
@@ -157,7 +109,7 @@
                             @if (showSentenceTranslations && !string.IsNullOrEmpty(sentence.Translation))
                             {
                                 <div class="sentence-translation">
-                                    💬 @sentence.Translation
+                                    @sentence.Translation
                                 </div>
                             }
                     </div>
@@ -218,7 +170,7 @@
     private async Task TranslateWordsLazilyAsync(ProcessedText processedText)
     {
         // Translate words one by one (not batch) after page is loaded
-        Console.WriteLine("🔄 Starting lazy word translation...");
+        Console.WriteLine("Starting lazy word translation...");
         var wordsTranslated = 0;
         
         foreach (var sentence in processedText.Sentences)
@@ -255,7 +207,7 @@
         
         // Final UI update
         await InvokeAsync(StateHasChanged);
-        Console.WriteLine($"✅ Lazy-loaded {wordsTranslated} word translations");
+        Console.WriteLine($"Lazy-loaded {wordsTranslated} word translations");
     }
 
     private Dictionary<int, string> sentenceStatus = new();
@@ -419,131 +371,14 @@
         return lang == "ar" ? "rtl" : "ltr";
     }
 
-    [Inject] private IJSRuntime Js { get; set; } = default!;
-    private DotNetObjectReference<ReadingPage>? _dotNetRef;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (SourceLang == "ja")
-        {
-            try
-            {
-                // attempt to call client helper if present (backward compatible)
-                await Js.InvokeVoidAsync("applyFuriganaToPending");
-
-                // Create a DotNetObjectReference to receive batch updates
-                if (_dotNetRef == null)
-                {
-                    _dotNetRef = DotNetObjectReference.Create(this);
-                }
-
-                // Call the new JS batch applier which will both patch DOM and notify Blazor
-                await Js.InvokeVoidAsync("applyFuriganaToPendingAndNotify", _dotNetRef);
-            }
-            catch
-            {
-                // OnAfterRender JS call failed
-            }
-        }
-    }
-
-    [JSInvokable]
-    public Task ReceiveFuriganaBatch(System.Text.Json.JsonElement updatesElement)
-    {
-        try
-        {
-            var updates = new List<FuriganaUpdate>();
-            if (updatesElement.ValueKind == System.Text.Json.JsonValueKind.Array)
-            {
-                foreach (var item in updatesElement.EnumerateArray())
-                {
-                    try
-                    {
-                        var u = System.Text.Json.JsonSerializer.Deserialize<FuriganaUpdate>(item.GetRawText());
-                        if (u != null) updates.Add(u);
-                    }
-                    catch { }
-                }
-            }
-
-            foreach (var u in updates)
-            {
-                // Find matching word(s) in processed text by Original or Normalized
-                foreach (var sentence in _processedText?.Sentences ?? Enumerable.Empty<ProcessedSentence>())
-                {
-                    foreach (var word in sentence.Words)
-                    {
-                        if (string.Equals(word.Original?.Trim(), u.Original?.Trim(), StringComparison.Ordinal))
-                        {
-                            if (!string.IsNullOrEmpty(u.Furigana)) word.Furigana = u.Furigana;
-                            if (!string.IsNullOrEmpty(u.Romaji)) word.Transliteration = u.Romaji;
-                        }
-                    }
-                }
-            }
-
-            // Trigger re-render
-            InvokeAsync(StateHasChanged);
-        }
-        catch
-        {
-            // ReceiveFuriganaBatch failed
-        }
-
-        return Task.CompletedTask;
-    }
-
-    private class FuriganaUpdate { public string? Original { get; set; } public string? Furigana { get; set; } public string? Romaji { get; set; } }
-
-    public void Dispose()
-    {
-        try
-        {
-            _dotNetRef?.Dispose();
-            _dotNetRef = null;
-        }
-        catch { }
-    }
 }
 
 @code {
-    private string GetTooltip(ProcessedWord word) => !string.IsNullOrEmpty(word.Translation) ? word.Translation : word.Original;
-}
-
-@code {
-    // Extract plain meanings from a translation string by stripping HTML and splitting on common separators.
-    // Returns a list of short, trimmed meaning lines.
-    private static List<string> ExtractMeanings(string translation)
+    private IWordDisplay GetWordDisplay(ProcessedWord word)
     {
-        if (string.IsNullOrWhiteSpace(translation)) return new List<string>();
-
-        // Remove simple HTML tags and wiki link fragments. Keep inner text of anchors and italics.
-        // This is a lightweight sanitizer — not a full HTML parser.
-        var text = System.Text.RegularExpressions.Regex.Replace(translation, "<\\s*br\\s*/?\\s*>", "\\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        text = System.Text.RegularExpressions.Regex.Replace(text, "<\\s*(/?)(a|i|em|strong|span)[^>]*>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        // Remove any remaining tags
-        text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", "", System.Text.RegularExpressions.RegexOptions.Singleline);
-
-        // Replace common separators used when joining meanings (semicolon, slash, pipe)
-        text = text.Replace(";", "\n").Replace("/", "\n").Replace("|", "\n");
-
-        // Split into lines and trim
-        var lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
-            .Where(l => !string.IsNullOrEmpty(l))
-            .ToList();
-
-        // If there are parentheses-wrapped transliterations like (Tōhoku), remove them from meanings
-        for (int i = 0; i < lines.Count; i++)
-        {
-            lines[i] = System.Text.RegularExpressions.Regex.Replace(lines[i], "\\s*\\([^)]*\\)", "");
-            lines[i] = lines[i].Trim();
-        }
-
-        // Optionally collapse duplicates
-        var distinct = lines.Distinct().ToList();
-        return distinct;
+        var factory = WordDisplayFactoryProvider.Instance.GetFactory(SourceLang);
+        return factory.CreateWordDisplay(word);
     }
 }
 
@@ -755,75 +590,6 @@
         color: #2c3e50;
         font-weight: 500;
     }
-    
-    /* Word translation tooltip overlay to avoid layout jitter */
-    .word-translation {
-        display: block;
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%) translateY(8px) scale(0.98);
-        white-space: normal;
-        max-width: 640px; /* allow wider tooltips for readable lists */
-        min-width: 220px; /* avoid collapsing to a very thin column */
-        font-size: 0.92rem;
-        color: #142a2b;
-        font-style: normal;
-        padding: 10px 12px;
-        background: linear-gradient(180deg, #ffffff, #fbfbfb);
-        border: 1px solid rgba(16,24,32,0.06);
-        border-radius: 8px;
-        box-shadow: 0 12px 32px rgba(2,6,23,0.10);
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 160ms cubic-bezier(.2,.9,.2,1), transform 160ms cubic-bezier(.2,.9,.2,1);
-        z-index: 60;
-        pointer-events: none;
-        line-height: 1.45;
-        text-align: left;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-        hyphens: auto;
-        box-sizing: border-box;
-    }
-
-    /* Show overlay on hover or keyboard focus for accessibility */
-    .word-wrapper:hover .word-translation,
-    .word-wrapper:focus .word-translation,
-    .word-wrapper:focus-within .word-translation {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(-50%) translateY(12px) scale(1);
-        pointer-events: auto;
-    }
-
-    /* Small arrow */
-    .word-translation::after {
-        content: "";
-        position: absolute;
-        top: -6px;
-        left: 50%;
-        transform: translateX(-50%) rotate(45deg);
-        width: 12px;
-        height: 12px;
-        background: linear-gradient(180deg, #ffffff, #fbfbfb);
-        border-left: 1px solid rgba(16,24,32,0.06);
-        border-top: 1px solid rgba(16,24,32,0.06);
-        box-shadow: -2px -2px 4px rgba(2,6,23,0.02);
-        z-index: -1;
-    }
-
-    /* Transliteration line shown under word (reserve small gap) */
-    .word-transliteration {
-        font-size: 0.78rem;
-        color: #7f8c8d;
-        margin-top: 4px;
-        text-align: center;
-        line-height: 1.1;
-        white-space: nowrap;
-    }
-
-    /* Reserve small space so tooltip doesn't overlap transliteration visually */
-    .word-wrapper { padding-bottom: 0.6rem; }
     
     .punctuation {
         display: inline;

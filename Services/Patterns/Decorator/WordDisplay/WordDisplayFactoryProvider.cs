@@ -3,22 +3,24 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// Provides correct IWordDisplayFactory based on language
-    /// This is NOT part of Abstract Factory pattern - just a helper
+    /// Provides correct IWordDisplayFactory based on language (Singleton)
     /// </summary>
     public class WordDisplayFactoryProvider
     {
+        private static readonly WordDisplayFactoryProvider _instance = new WordDisplayFactoryProvider();
+        public static WordDisplayFactoryProvider Instance => _instance;
+        
         private readonly Dictionary<string, IWordDisplayFactory> _factories;
         
-        public WordDisplayFactoryProvider()
+        private WordDisplayFactoryProvider()
         {
-            // Register all concrete factories
+            // Register all singleton factory instances
             _factories = new Dictionary<string, IWordDisplayFactory>
             {
-                { "en", new EnglishWordDisplayFactory() },
-                { "sk", new SlovakWordDisplayFactory() },
-                { "ar", new ArabicWordDisplayFactory() },
-                { "ja", new JapaneseWordDisplayFactory() }
+                { "en", EnglishWordDisplayFactory.Instance },
+                { "sk", SlovakWordDisplayFactory.Instance },
+                { "ar", ArabicWordDisplayFactory.Instance },
+                { "ja", JapaneseWordDisplayFactory.Instance }
             };
         }
         

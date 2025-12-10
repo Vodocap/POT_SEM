@@ -4,11 +4,16 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// ABSTRACT FACTORY - Concrete Factory for Japanese
+    /// ABSTRACT FACTORY - Concrete Factory for Japanese (Singleton)
     /// Creates 4-layer word displays: Original + Furigana + Romaji + Translation
     /// </summary>
     public class JapaneseWordDisplayFactory : IWordDisplayFactory
     {
+        private static readonly JapaneseWordDisplayFactory _instance = new JapaneseWordDisplayFactory();
+        public static JapaneseWordDisplayFactory Instance => _instance;
+        
+        private JapaneseWordDisplayFactory() { }
+        
         public string LanguageCode => "ja";
         
         public int LayerCount => 4;

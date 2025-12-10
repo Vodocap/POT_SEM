@@ -32,8 +32,6 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
         
         public string GetDisplayText() => _word.Original;
         
-        public string GetTooltipText() => _word.Original;
-        
         public string GetCssClass()
         {
             return _word.IsPunctuation ? "word-punctuation" : "word-base";

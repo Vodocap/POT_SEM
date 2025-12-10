@@ -36,14 +36,6 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
         
         public string GetDisplayText() => _inner.GetDisplayText();
         
-        public string GetTooltipText()
-        {
-            var baseTooltip = _inner.GetTooltipText();
-            return !string.IsNullOrEmpty(_transliteration)
-                ? $"{baseTooltip} ({_transliteration})"
-                : baseTooltip;
-        }
-        
         public string GetCssClass() => _inner.GetCssClass() + " has-transliteration";
     }
 }

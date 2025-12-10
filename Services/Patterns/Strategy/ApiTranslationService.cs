@@ -7,7 +7,6 @@ namespace POT_SEM.Services.Patterns.Strategy
 {
     /// <summary>
     /// STRATEGY PATTERN - External API translation implementation
-    /// Uses MyMemory free translation API (1000 requests/day)
     /// </summary>
 public class ApiTranslationService : ITranslationStrategy
     {

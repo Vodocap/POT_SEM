@@ -8,11 +8,10 @@ using POT_SEM.Services.Patterns.Factory;
 using POT_SEM.Services.Databases;
 using POT_SEM.Services.Patterns.Facade;
 using POT_SEM.Services.Patterns.Strategy;
-using POT_SEM.Services.Patterns.Strategy.Topic;
 using POT_SEM.Services.Patterns.Flyweight;
 using POT_SEM.Services.Patterns.Flyweight.Cache;
-using POT_SEM.Services.Patterns.ChainOfResponsibility;
-using POT_SEM.Services.Patterns.Composite;
+using POT_SEM.Services.Patterns.ChainOfResponsibility.Translation;
+using POT_SEM.Services.Dictionary;
 using Supabase;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -21,18 +20,13 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// ========================================
-// HTTP CLIENT (pre API calls)
-// ========================================
+// HTTP CLIENT
 builder.Services.AddScoped(sp => new HttpClient 
 { 
     BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) 
 });
 
-// ========================================
 // SUPABASE CLIENT
-// ========================================
-// Use an HttpClient with BaseAddress set so relative config file requests work in WASM
 var httpForConfig = new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) };
 var supabaseConfig = await SupabaseConfig.LoadAsync(httpForConfig);
 
@@ -50,85 +44,54 @@ builder.Services.AddSingleton(provider =>
     return new Supabase.Client(url, key, options);
 });
 
-// ========================================
 // TOPIC GENERATION STRATEGIES
-// ========================================
-builder.Services.AddSingleton<ITopicGenerationStrategy, StaticTopicStrategy>();
+builder.Services.AddScoped<POT_SEM.Services.Patterns.Strategy.RandomWord.WikipediaRandomWordService>();
+builder.Services.AddScoped<ITopicGenerationStrategy, POT_SEM.Services.Patterns.ChainOfResponsibility.TopicGeneration.ChainedTopicGenerationService>();
 
-// ========================================
 // LANGUAGE SOURCE FACTORY
-// ========================================
-// Register as scoped so it can consume scoped services like HttpClient
 builder.Services.AddScoped<LanguageSourceFactory>();
 
-// ========================================
-// TEXT SERVICES (from existing system)
-// ========================================
+// TEXT SERVICES 
 
 // Text cache service
-builder.Services.AddSingleton<ITextCacheService, TextCacheService>();
+builder.Services.AddSingleton<ITextCacheService, StoryCache>();
 
-// Text provider builder
-// Register as scoped to allow dependencies that are scoped (HttpClient, factory)
-builder.Services.AddScoped<TextProviderBuilder>();
+builder.Services.AddScoped<TextProviderFactory>();
 
-// Text storage
 builder.Services.AddSingleton<TextStorageService>();
 
-// ========================================
-// TRANSLATION SERVICES (STRATEGY PATTERN)
-// ========================================
+// TRANSLATION SERVICES
 
-// Register all translation strategies
 builder.Services.AddScoped<ApiTranslationService>();
 builder.Services.AddScoped<DatabaseTranslationService>();
 
-// Register DictionaryTranslationStrategy (no helper needed initially)
+// Register DictionaryTranslationStrategy
 builder.Services.AddScoped<DictionaryTranslationStrategy>(sp =>
 {
-    var cache = sp.GetRequiredService<TranslationCacheService>();
-    // Don't pass helper to avoid circular dependency - meanings joining is simple enough
-    return new DictionaryTranslationStrategy(cache, null);
+    var dictionaryService = sp.GetRequiredService<ApiDictionaryService>();
+    return new DictionaryTranslationStrategy(dictionaryService);
 });
 
-// CHAIN OF RESPONSIBILITY: Cache → Database → Dictionary → API
 builder.Services.AddScoped<ChainedTranslationService>(sp =>
 {
     var apiService = sp.GetRequiredService<ApiTranslationService>();
     var dbService = sp.GetService<DatabaseTranslationService>();
-    var cache = sp.GetRequiredService<TranslationCacheService>();
+    var cache = sp.GetRequiredService<WordFlyweightFactory>();
     var dictionary = sp.GetRequiredService<DictionaryTranslationStrategy>();
 
-    // Create chain: Cache → DB (fast) → Dictionary (slow AI) → API (slowest)
     return new ChainedTranslationService(cache, dictionary, dbService, apiService);
 });
 
-// Register the chain as ITranslationStrategy
 builder.Services.AddScoped<ITranslationStrategy>(sp => sp.GetRequiredService<ChainedTranslationService>());
-
-// Register DictionaryTranslationHelper (uses ChainedTranslationService for DB persistence)
-builder.Services.AddScoped<POT_SEM.Services.Dictionary.DictionaryTranslationHelper>(sp =>
-{
-    var chainedService = sp.GetService<ChainedTranslationService>();
-    return new POT_SEM.Services.Dictionary.DictionaryTranslationHelper(chainedService);
-});
 
 // API Dictionary service
 builder.Services.AddScoped(sp => new POT_SEM.Services.Dictionary.ApiDictionaryService(sp.GetRequiredService<HttpClient>()));
 
-// Translation Cache Service (simple memoization)
-builder.Services.AddScoped<TranslationCacheService>(sp =>
-{
-    var apiDict = sp.GetService<POT_SEM.Services.Dictionary.ApiDictionaryService>();
-    return apiDict != null ? new TranslationCacheService(apiDict) : new TranslationCacheService();
-});
-
-// FLYWEIGHT PATTERN (Gang of Four) - Word Flyweight Factory with database integration
+// Word Translation Cache (caches individual word translations)
 builder.Services.AddScoped<WordFlyweightFactory>(sp =>
 {
     var database = sp.GetService<DatabaseTranslationService>();
-    var apiDict = sp.GetService<POT_SEM.Services.Dictionary.ApiDictionaryService>();
-    return new WordFlyweightFactory(database, apiDict);
+    return new WordFlyweightFactory(database);
 });
 
 // Transliteration services (Arabic, Japanese)
@@ -149,23 +112,14 @@ builder.Services.AddScoped<POT_SEM.Services.Transliteration.FuriganaEnrichmentSe
 builder.Services.AddScoped<POT_SEM.Core.Interfaces.ITransliterationService>(sp => 
     sp.GetRequiredService<POT_SEM.Services.Transliteration.FuriganaEnrichmentService>());
 
-// ========================================
-// PROCESSING SERVICES (COMPOSITE + FACADE)
-// ========================================
-
-// Processing facade (simplifies the whole pipeline)
+// Processing facade
 builder.Services.AddScoped<TextProcessingFacade>(sp =>
 {
     var translationChain = sp.GetRequiredService<ITranslationStrategy>();
     var transliterationServices = sp.GetServices<POT_SEM.Core.Interfaces.ITransliterationService>();
-    var cache = sp.GetRequiredService<TranslationCacheService>();
     var furiganaEnrichment = sp.GetRequiredService<POT_SEM.Services.Transliteration.FuriganaEnrichmentService>();
 
-    return new TextProcessingFacade(translationChain, transliterationServices, cache, furiganaEnrichment);
+    return new TextProcessingFacade(translationChain, transliterationServices, furiganaEnrichment);
 });
-
-// ========================================
-// RUN APP
-// ========================================
 
 await builder.Build().RunAsync();

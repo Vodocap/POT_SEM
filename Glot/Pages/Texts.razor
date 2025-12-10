@@ -1,40 +1,40 @@
 @page "/"
 @page "/texts"
 @using POT_SEM.Core.Models
-@using POT_SEM.Services.Patterns.Bridge
+@using POT_SEM.Services.TextProviders
 @using POT_SEM.Services.Patterns.Factory
-@inject TextProviderBuilder Builder
+@inject TextProviderFactory Builder
 @inject NavigationManager Navigation
 
-<PageTitle>🌍 Multilingual Text Browser</PageTitle>
+<PageTitle>Multilingual Text Browser</PageTitle>
 
-<h3>🌍 Language Learning Texts</h3>
+<h3>Language Learning Texts</h3>
 
 <div class="controls">
     <div class="form-group">
         <label>Language:</label>
         <select @bind="selectedLanguage" class="form-select">
-            <option value="en">🇬🇧 English</option>
-            <option value="sk">🇸🇰 Slovak (Slovenčina)</option>
-            <option value="ar">🇸🇦 Arabic (العربية)</option>
-            <option value="ja">🇯🇵 Japanese (日本語)</option>
+            <option value="en">English</option>
+            <option value="sk">Slovak (Slovenčina)</option>
+            <option value="ar">Arabic (العربية)</option>
+            <option value="ja">Japanese (日本語)</option>
         </select>
     </div>
     
     <div class="form-group">
         <label>Target Language (for translation):</label>
         <select @bind="targetLanguage" class="form-select">
-            <option value="en">🇬🇧 English</option>
-            <option value="sk">🇸🇰 Slovak</option>
+            <option value="en">English</option>
+            <option value="sk">Slovak</option>
         </select>
     </div>
     
     <div class="form-group">
         <label>Difficulty:</label>
         <select @bind="selectedDifficulty" class="form-select">
-            <option value="@DifficultyLevel.Beginner">🌱 Beginner</option>
-            <option value="@DifficultyLevel.Intermediate">🌿 Intermediate</option>
-            <option value="@DifficultyLevel.Advanced">🌲 Advanced</option>
+            <option value="@DifficultyLevel.Beginner">Beginner</option>
+            <option value="@DifficultyLevel.Intermediate">Intermediate</option>
+            <option value="@DifficultyLevel.Advanced">Advanced</option>
         </select>
     </div>
     
@@ -51,11 +51,11 @@
     <button @onclick="LoadTexts" class="btn btn-primary" disabled="@isLoading">
         @if (isLoading)
         {
-            <span>⏳ Loading...</span>
+            <span>Loading...</span>
         }
         else
         {
-            <span>🔍 Load Texts</span>
+            <span>Load Texts</span>
         }
     </button>
 </div>
@@ -63,7 +63,7 @@
 @if (errorMessage != null)
 {
     <div class="alert alert-danger">
-        <strong>❌ Error:</strong> @errorMessage
+        <strong>Error:</strong> @errorMessage
     </div>
 }
 
@@ -71,7 +71,7 @@
 {
     <div class="texts">
         <p class="info">
-            ✅ Found <strong>@texts.Count</strong> text(s) 
+            Found <strong>@texts.Count</strong> text(s) 
             (@GetLanguageName(selectedLanguage) - @selectedDifficulty)
         </p>
         
@@ -91,7 +91,7 @@
                     @if (!string.IsNullOrEmpty(text.Metadata.SourceUrl))
                     {
                         <a href="@text.Metadata.SourceUrl" target="_blank" class="btn btn-sm btn-outline-primary">
-                            📖 Read source →
+                            Read source →
                         </a>
                     }
                     
@@ -172,7 +172,7 @@ else if (!isLoading && texts == null)
     
     private string GetLanguageName(string code)
     {
-        return TextProviderBuilder.GetLanguageName(code);
+        return TextProviderFactory.GetLanguageName(code);
     }
 }
 

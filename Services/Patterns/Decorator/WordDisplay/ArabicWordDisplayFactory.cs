@@ -4,11 +4,16 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// ABSTRACT FACTORY - Concrete Factory for Arabic
+    /// ABSTRACT FACTORY - Concrete Factory for Arabic (Singleton)
     /// Creates 3-layer word displays: Original + Transliteration + Translation
     /// </summary>
     public class ArabicWordDisplayFactory : IWordDisplayFactory
     {
+        private static readonly ArabicWordDisplayFactory _instance = new ArabicWordDisplayFactory();
+        public static ArabicWordDisplayFactory Instance => _instance;
+        
+        private ArabicWordDisplayFactory() { }
+        
         public string LanguageCode => "ar";
         
         public int LayerCount => 3;

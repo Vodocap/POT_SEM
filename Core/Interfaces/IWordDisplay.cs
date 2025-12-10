@@ -8,7 +8,6 @@ namespace POT_SEM.Core.Interfaces
     {
         List<DisplayLayer> GetLayers();
         string GetDisplayText();
-        string GetTooltipText();
         string GetCssClass();
     }
     

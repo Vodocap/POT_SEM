@@ -1,4 +1,3 @@
-using POT_SEM.Core.Interfaces;
 using System.Text.Json;
 
 namespace POT_SEM.Services.Patterns.Strategy.RandomWord
@@ -7,7 +6,7 @@ namespace POT_SEM.Services.Patterns.Strategy.RandomWord
     /// Uses Wikipedia Random Page API to get random topics
     /// Works for ALL languages, completely free, no limits!
     /// </summary>
-    public class WikipediaRandomWordService : IRandomWordService
+    public class WikipediaRandomWordService
     {
         private readonly HttpClient _httpClient;
         
