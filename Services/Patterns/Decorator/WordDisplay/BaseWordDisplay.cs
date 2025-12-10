@@ -4,8 +4,7 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// DECORATOR PATTERN - Concrete Component
-    /// Basic word display (just original text)
+    /// Basic word display 
     /// </summary>
     public class BaseWordDisplay : IWordDisplay
     {

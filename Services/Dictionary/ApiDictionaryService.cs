@@ -72,7 +72,6 @@ namespace POT_SEM.Services.Dictionary
             var results = new Dictionary<string, DictionaryEntry>();
             if (words == null || words.Count == 0) return results;
 
-            // Parallel lookups with concurrency limit
             var semaphore = new System.Threading.SemaphoreSlim(10);
             var tasks = words.Select(async word =>
             {

@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace POT_SEM.Core.StrategyImplementations
 {
     /// <summary>
-    /// Fetch strategy pre Simple English Wikipedia (pre beginnerov)
+    /// Fetch strategy for Simple English Wikipedia
     /// </summary>
     public class SimpleWikipediaStrategy : ITextFetchStrategy
     {

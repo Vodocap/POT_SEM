@@ -14,7 +14,6 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
         
         private WordDisplayFactoryProvider()
         {
-            // Register all singleton factory instances
             _factories = new Dictionary<string, IWordDisplayFactory>
             {
                 { "en", EnglishWordDisplayFactory.Instance },
@@ -36,24 +35,8 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
                 return factory;
             }
             
-            // Default to English factory
             return _factories["en"];
         }
         
-        /// <summary>
-        /// Get all available factories
-        /// </summary>
-        public IEnumerable<IWordDisplayFactory> GetAllFactories()
-        {
-            return _factories.Values;
-        }
-        
-        /// <summary>
-        /// Get supported languages
-        /// </summary>
-        public IEnumerable<string> GetSupportedLanguages()
-        {
-            return _factories.Keys;
-        }
     }
 }

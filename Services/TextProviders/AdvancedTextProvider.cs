@@ -52,7 +52,6 @@ namespace POT_SEM.Services.TextProviders
                     Math.Max(2, (int)Math.Ceiling(text.Metadata.EstimatedWordCount / 200.0)); // 200 is circa the average reading speed (words/minute)
             }
             
-            // Order by word count (longest first for advanced)
             return texts.OrderByDescending(t => t.Metadata.EstimatedWordCount).ToList();
         }
         

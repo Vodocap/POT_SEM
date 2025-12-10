@@ -1,9 +1,8 @@
 namespace POT_SEM.Services.Patterns.Flyweight
 {
     /// <summary>
-    /// FLYWEIGHT PATTERN - Intrinsic State
     /// Immutable shared object representing a word and its translation
-    /// Contains ONLY intrinsic state: word + translation (shared across all contexts)
+    /// Contains only intrinsic state: word + translation (shared across all contexts)
     /// </summary>
     public class WordFlyweight
     {

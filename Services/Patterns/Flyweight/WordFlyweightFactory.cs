@@ -4,10 +4,9 @@ using POT_SEM.Services.Patterns.Strategy;
 namespace POT_SEM.Services.Patterns.Flyweight
 {
     /// <summary>
-    /// FLYWEIGHT PATTERN (Gang of Four) - Factory
     /// Manages pool of shared WordFlyweight objects
     /// Integrates with database for persistence
-    /// Stores ONLY word translations (intrinsic state)
+    /// Stores only word translations (intrinsic state)
     /// </summary>
     public class WordFlyweightFactory
     {
@@ -36,7 +35,6 @@ namespace POT_SEM.Services.Patterns.Flyweight
             
             var flyweight = new WordFlyweight(text, normalized, sourceLang, targetLang);
             
-            // Auto-load from database
             if (_database != null)
             {
                 try
@@ -49,7 +47,6 @@ namespace POT_SEM.Services.Patterns.Flyweight
                 }
                 catch
                 {
-                    // ignore database errors
                 }
             }
             
@@ -78,13 +75,12 @@ namespace POT_SEM.Services.Patterns.Flyweight
                 }
                 catch
                 {
-                    // ignore database errors
                 }
             }
         }
         
         /// <summary>
-        /// Get translation synchronously (for cache compatibility)
+        /// Get translation synchronously
         /// </summary>
         public string? GetTranslation(string sourceLang, string targetLang, string word)
         {
@@ -96,89 +92,7 @@ namespace POT_SEM.Services.Patterns.Flyweight
             }
             return null;
         }
-        
-        /// <summary>
-        /// Add translation synchronously (for cache compatibility)
-        /// </summary>
-        public void AddTranslation(string sourceLang, string targetLang, string word, string translation)
-        {
-            if (string.IsNullOrWhiteSpace(translation)) return;
-            
-            var normalized = word.ToLower().Trim();
-            var key = CreateKey(sourceLang, targetLang, normalized);
-            
-            if (_flyweightPool.TryGetValue(key, out var existing))
-            {
-                existing.Translation = translation;
-                existing.LastAccessed = DateTime.UtcNow;
-            }
-            else
-            {
-                _flyweightPool.TryAdd(key, new WordFlyweight(word, normalized, sourceLang, targetLang) { Translation = translation });
-            }
-        }
-        
-        /// <summary>
-        /// Batch get or create flyweights with database integration
-        /// </summary>
-        public async Task<List<WordFlyweight>> GetOrCreateBatchAsync(IEnumerable<string> words, string sourceLang, string targetLang)
-        {
-            var flyweights = new List<WordFlyweight>();
-            var wordsToFetch = new List<string>();
-            
-            foreach (var word in words)
-            {
-                var key = CreateKey(sourceLang, targetLang, word.ToLower().Trim());
-                if (_flyweightPool.TryGetValue(key, out var existing))
-                {
-                    existing.LastAccessed = DateTime.UtcNow;
-                    flyweights.Add(existing);
-                }
-                else
-                {
-                    wordsToFetch.Add(word);
-                }
-            }
-            
-            if (wordsToFetch.Any() && _database != null)
-            {
-                try
-                {
-                    var dbTranslations = await _database.TranslateBatchAsync(wordsToFetch.Select(w => w.ToLower().Trim()), sourceLang, targetLang);
-                    foreach (var word in wordsToFetch)
-                    {
-                        var normalized = word.ToLower().Trim();
-                        var flyweight = new WordFlyweight(word, normalized, sourceLang, targetLang);
-                        if (dbTranslations.TryGetValue(normalized, out var translation))
-                        {
-                            flyweight.Translation = translation;
-                        }
-                        flyweights.Add(_flyweightPool.GetOrAdd(CreateKey(sourceLang, targetLang, normalized), flyweight));
-                    }
-                }
-                catch
-                {
-                    foreach (var word in wordsToFetch)
-                    {
-                        var normalized = word.ToLower().Trim();
-                        flyweights.Add(_flyweightPool.GetOrAdd(CreateKey(sourceLang, targetLang, normalized), new WordFlyweight(word, normalized, sourceLang, targetLang)));
-                    }
-                }
-            }
-            else
-            {
-                foreach (var word in wordsToFetch)
-                {
-                    var normalized = word.ToLower().Trim();
-                    flyweights.Add(_flyweightPool.GetOrAdd(CreateKey(sourceLang, targetLang, normalized), new WordFlyweight(word, normalized, sourceLang, targetLang)));
-                }
-            }
-            
-            return flyweights;
-        }
-        
-        public void Clear() => _flyweightPool.Clear();
-        
+                
         private string CreateKey(string sourceLang, string targetLang, string normalized) =>
             $"{sourceLang.ToLower()}:{targetLang.ToLower()}:{normalized}";
     }

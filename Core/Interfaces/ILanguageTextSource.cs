@@ -4,7 +4,6 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Core.Interfaces
 {
     /// <summary>
-    /// BRIDGE IMPLEMENTATION INTERFACE
     /// Reprezentuje zdroj textov v konkrétnom jazyku
     /// Deleguje získavanie textov na ITextFetchStrategy
     /// </summary>

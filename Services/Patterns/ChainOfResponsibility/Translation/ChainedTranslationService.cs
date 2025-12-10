@@ -5,20 +5,8 @@ using POT_SEM.Services.Patterns.Flyweight;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
 {
     /// <summary>
-    /// CHAIN OF RESPONSIBILITY PATTERN - Client/Facade 
-
     /// Builds and manages the handler chain: Flyweight → Dictionary → API
     /// Acts as a unified interface (Strategy pattern) while using Chain of Responsibility internally
-    /// 
-    /// Gang of Four Compliance:
-    /// - Abstract Handler: TranslationHandler (base class)
-    /// - Concrete Handlers: FlyweightTranslationHandler, DictionaryTranslationHandler, ApiTranslationHandler
-    /// - Client: This class (builds the chain and initiates requests)
-    /// 
-    /// Chain Order (fast to slow):
-    /// 1. Flyweight (memory + DB) - ~1-100ms
-    /// 2. Dictionary (AI API) - ~1-2 seconds
-    /// 3. API (AI translation) - ~1-3 seconds
     /// </summary>
     public class ChainedTranslationService : ITranslationStrategy
     {
@@ -39,7 +27,6 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
             _flyweightFactory = flyweightFactory ?? throw new ArgumentNullException(nameof(flyweightFactory));
             _database = database;
             
-            // Build chain from end to start (reverse order)
             var apiHandler = new ApiTranslationHandler(api, database);
             
             TranslationHandler chain = apiHandler;

@@ -3,7 +3,7 @@ using POT_SEM.Services.Patterns.Strategy;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
 {
     /// <summary>
-    /// Dictionary API handler providing rich word meanings (AI-based, slower than DB).
+    /// Dictionary API handler 
     /// </summary>
     public class DictionaryTranslationHandler : TranslationHandler
     {
@@ -16,7 +16,7 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
         
         public override async Task<string?> HandleAsync(string word, string sourceLang, string targetLang)
         {
-            // Try dictionary API (AI-based, slower)
+            // Try dictionary API
             var result = await _dictionary.TranslateWordAsync(word, sourceLang, targetLang);
             
             if (result != null)
@@ -24,8 +24,6 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
                 Console.WriteLine($"DICTIONARY HIT: {word} -> {result}");
                 return result;
             }
-            
-            Console.WriteLine($"DICTIONARY MISS: {word} - passing to next handler");
             
             // Not found in dictionary, delegate to next handler
             return _nextHandler != null 

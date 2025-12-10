@@ -3,7 +3,7 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// DECORATOR - Adds furigana (hiragana) layer for Japanese words
+    /// Adds furigana (hiragana) layer for Japanese words
     /// </summary>
     public class FuriganaDecorator : IWordDisplay
     {

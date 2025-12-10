@@ -21,11 +21,8 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
             
             if (flyweight.Translation != null)
             {
-                Console.WriteLine($"FLYWEIGHT HIT (memory or DB): {word}");
                 return flyweight.Translation;
             }
-            
-            Console.WriteLine($"FLYWEIGHT MISS: {word} - passing to next handler");
             
             // Not in flyweight pool or database, delegate to next handler
             if (_nextHandler != null)

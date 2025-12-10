@@ -3,8 +3,8 @@ using System.Text.RegularExpressions;
 namespace POT_SEM.Services.TextProviders.Parsing
 {
     /// <summary>
-    /// BRIDGE PATTERN - Concrete Implementation
-    /// Regex-based text splitting (works for most languages)
+    /// Concrete Implementation
+    /// Regex-based text splitting for languages 
     /// </summary>
     public class RegexTextSplitter : ITextSplitter
     {

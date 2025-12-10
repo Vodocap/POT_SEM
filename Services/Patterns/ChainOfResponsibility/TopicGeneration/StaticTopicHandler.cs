@@ -3,7 +3,7 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.TopicGeneration
 {
     /// <summary>
-    /// Last handler (fallback): Static hardcoded topics - always succeeds
+    /// Last handler (fallback): Static hardcoded topics
     /// </summary>
     public class StaticTopicHandler : TopicGenerationHandler
     {

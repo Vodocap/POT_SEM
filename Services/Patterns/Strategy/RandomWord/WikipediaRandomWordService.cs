@@ -4,7 +4,6 @@ namespace POT_SEM.Services.Patterns.Strategy.RandomWord
 {
     /// <summary>
     /// Uses Wikipedia Random Page API to get random topics
-    /// Works for ALL languages, completely free, no limits!
     /// </summary>
     public class WikipediaRandomWordService
     {
@@ -15,16 +14,7 @@ namespace POT_SEM.Services.Patterns.Strategy.RandomWord
             ["en"] = "https://en.wikipedia.org",
             ["sk"] = "https://sk.wikipedia.org",
             ["ar"] = "https://ar.wikipedia.org",
-            ["ru"] = "https://ru.wikipedia.org",
-            ["ja"] = "https://ja.wikipedia.org",
-            ["de"] = "https://de.wikipedia.org",
-            ["fr"] = "https://fr.wikipedia.org",
-            ["es"] = "https://es.wikipedia.org",
-            ["it"] = "https://it.wikipedia.org",
-            ["pl"] = "https://pl.wikipedia.org",
-            ["cs"] = "https://cs.wikipedia.org",
-            ["hu"] = "https://hu.wikipedia.org",
-            ["uk"] = "https://uk.wikipedia.org"
+            ["ja"] = "https://ja.wikipedia.org"
         };
         
         public WikipediaRandomWordService(HttpClient httpClient)
@@ -43,7 +33,6 @@ namespace POT_SEM.Services.Patterns.Strategy.RandomWord
                 baseUrl = WikipediaBaseUrls["en"];
             }
             
-            // Wikipedia random API endpoint
             var randomUrl = $"{baseUrl}/api/rest_v1/page/random/summary";
             
             for (int i = 0; i < count; i++)
@@ -61,7 +50,6 @@ namespace POT_SEM.Services.Patterns.Strategy.RandomWord
                         
                         if (!string.IsNullOrEmpty(title))
                         {
-                            // Clean up title (remove parentheses, disambiguation)
                             var cleanTitle = CleanTitle(title);
                             
                             if (!string.IsNullOrEmpty(cleanTitle) && !words.Contains(cleanTitle))
@@ -79,15 +67,14 @@ namespace POT_SEM.Services.Patterns.Strategy.RandomWord
                         i--; // Retry
                     }
                     
-                    // Small delay to avoid rate limiting
                     if (i < count - 1)
                     {
-                        await Task.Delay(100);
+                        await Task.Delay(50);
                     }
                 }
                 catch
                 {
-                    i--; // Retry
+                    i--; 
                 }
             }
             
@@ -123,7 +110,6 @@ namespace POT_SEM.Services.Patterns.Strategy.RandomWord
                 return string.Empty;
             }
             
-            // Remove Wikipedia meta pages
             if (cleanTitle.Contains("Wikipedia:") || 
                 cleanTitle.Contains("Category:") ||
                 cleanTitle.Contains("Portal:") ||

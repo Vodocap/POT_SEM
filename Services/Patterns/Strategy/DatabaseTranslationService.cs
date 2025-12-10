@@ -5,7 +5,7 @@ using Supabase;
 namespace POT_SEM.Services.Patterns.Strategy
 {
     /// <summary>
-    /// STRATEGY PATTERN - Database-based translation lookup
+    /// Database-based translation lookup
     /// Uses Supabase for persistent translation cache
     /// </summary>
     public class DatabaseTranslationService : ITranslationStrategy
@@ -39,7 +39,6 @@ namespace POT_SEM.Services.Patterns.Strategy
                 
                 if (result != null)
                 {
-                    // Increment usage count (fire and forget)
                     _ = IncrementUsageAsync(result.Id);
                     
                     return result.Translation;
@@ -55,8 +54,6 @@ namespace POT_SEM.Services.Patterns.Strategy
         
         public async Task<string?> TranslateSentenceAsync(string sentence, string sourceLang, string targetLang)
         {
-            // Sentences are not stored in database (too context-dependent)
-            // Return null to fall through to API
             return await Task.FromResult<string?>(null);
         }
         
@@ -84,22 +81,17 @@ namespace POT_SEM.Services.Patterns.Strategy
                     {
                         results[translation.OriginalWord] = translation.Translation;
                         
-                        // Increment usage (fire and forget)
                         _ = IncrementUsageAsync(translation.Id);
                     }
                 }
             }
             catch
             {
-                // Database batch lookup failed
             }
             
             return results;
         }
         
-        /// <summary>
-        /// Save new translation to database
-        /// </summary>
         public async Task SaveTranslationAsync(
             string originalWord, 
             string translation, 
@@ -131,18 +123,13 @@ namespace POT_SEM.Services.Patterns.Strategy
             }
             catch (Exception ex)
             {
-                // Ignore duplicate key errors (translation already exists)
                 if (!ex.Message.Contains("duplicate key"))
                 {
-                    // Failed to save translation
                 }
             }
         }
         
-        /// <summary>
-        /// Increment usage count for translation
-        /// </summary>
-        private async Task IncrementUsageAsync(long translationId)  // ← ZMENA: int → long
+        private async Task IncrementUsageAsync(long translationId)
         {
             try
             {
@@ -161,7 +148,6 @@ namespace POT_SEM.Services.Patterns.Strategy
             }
             catch
             {
-                // Failed to increment usage
             }
         }
     }

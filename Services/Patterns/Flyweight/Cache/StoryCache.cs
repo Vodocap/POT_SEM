@@ -6,7 +6,7 @@ namespace POT_SEM.Services.Patterns.Flyweight.Cache
 {
     /// <summary>
     /// Story/Document cache - caches entire Text objects (articles/stories) by language and difficulty
-    /// Prevents re-fetching the same content from external APIs (Wikipedia, Gutenberg, etc.)
+    /// Prevents re-fetching the same content from external APIs
     /// Thread-safe using ConcurrentDictionary
     /// </summary>
     public class StoryCache : ITextCacheService
@@ -27,7 +27,7 @@ namespace POT_SEM.Services.Patterns.Flyweight.Cache
             
             if (_cache.TryGetValue(key, out var texts))
             {
-                return texts.ToList(); // Return copy to avoid mutation
+                return texts.ToList();
             }
             
             return null;
@@ -37,7 +37,7 @@ namespace POT_SEM.Services.Patterns.Flyweight.Cache
         {
             var key = GetCacheKey(languageCode, difficulty);
             
-            _cache[key] = texts.ToList(); // Store copy
+            _cache[key] = texts.ToList();
             _lastPreloadTime = DateTime.UtcNow;
         }
         

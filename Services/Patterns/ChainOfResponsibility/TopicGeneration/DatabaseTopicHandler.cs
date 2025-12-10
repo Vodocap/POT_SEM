@@ -5,7 +5,7 @@ using POT_SEM.Services.Databases;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.TopicGeneration
 {
     /// <summary>
-    /// First handler: Try to get topics from database (fastest, most relevant)
+    /// First handler: Try to get topics from database
     /// </summary>
     public class DatabaseTopicHandler : TopicGenerationHandler
     {

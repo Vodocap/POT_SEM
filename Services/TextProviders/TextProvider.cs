@@ -8,7 +8,7 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Services.TextProviders
 {
     /// <summary>
-    /// Abstract base class for text providers using Template Method pattern.
+    /// Abstract base class for text providers.
     /// Defines the skeleton for text validation with difficulty-specific implementations.
     /// </summary>
     public abstract class TextProvider

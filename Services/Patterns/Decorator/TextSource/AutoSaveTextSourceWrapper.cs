@@ -26,10 +26,8 @@ namespace POT_SEM.Services.Patterns.Decorator.TextSource
 
         public async Task<List<Text>> FetchTextsAsync(TextSearchCriteria criteria)
         {
-            // ✅ Fetch texts from inner source
             var texts = await _innerSource.FetchTextsAsync(criteria);
 
-            // ✅ Save to database in background (non-blocking)
             if (texts.Any())
             {
                 _ = Task.Run(async () =>
@@ -40,7 +38,6 @@ namespace POT_SEM.Services.Patterns.Decorator.TextSource
                     }
                     catch
                     {
-                        // Auto-save failed
                     }
                 });
             }

@@ -95,9 +95,8 @@
                         </a>
                     }
                     
-                    <!-- 🔥 NEW: Read with translation button -->
                     <button @onclick="() => NavigateToReading(text)" class="btn btn-sm btn-success">
-                        🌐 Read with translation →
+                        Read with translation →
                     </button>
                 </div>
             </div>
@@ -113,7 +112,7 @@ else if (!isLoading && texts == null)
 
 @code {
     private string selectedLanguage = "en";
-    private string targetLanguage = "sk"; // Default translation target
+    private string targetLanguage = "sk";
     private DifficultyLevel selectedDifficulty = DifficultyLevel.Beginner;
     private string? topic;
     private int count = 5;
@@ -130,7 +129,6 @@ else if (!isLoading && texts == null)
         
         try
         {
-            // 🔥 BRIDGE + BUILDER + STRATEGY PATTERN!
             var provider = Builder
                 .ForLanguage(selectedLanguage)
                 .ForDifficulty(selectedDifficulty)

@@ -3,10 +3,10 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.TextProviders.Parsing
 {
     /// <summary>
-    /// BRIDGE PATTERN - Implementation Interface
+    /// Implementation Interface
     /// Generic word tokenization algorithm
     /// </summary>
-    public interface IWordTokenizerImpl
+    public interface IWordTokenizer
     {
         List<ProcessedWord> Tokenize(string sentence, int sentenceIndex, TokenizationRules rules);
     }

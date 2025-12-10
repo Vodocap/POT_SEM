@@ -2,9 +2,12 @@ using POT_SEM.Core.Models;
 
 namespace POT_SEM.Services.TextProviders.Parsing
 {
+    /// <summary>
+    /// parser for Arabic language
+    /// </summary>
     public class ArabicLanguageParser : LanguageParser
     {
-        public ArabicLanguageParser(ITextSplitter splitter, IWordTokenizerImpl tokenizer)
+        public ArabicLanguageParser(ITextSplitter splitter, IWordTokenizer tokenizer)
             : base(splitter, tokenizer)
         {
         }

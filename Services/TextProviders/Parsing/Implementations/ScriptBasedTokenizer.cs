@@ -3,9 +3,9 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.TextProviders.Parsing
 {
     /// <summary>
-    /// BRIDGE PATTERN - Concrete Implementation
+    /// tokenization based on character scripts (Japanese, Chinese)
     /// </summary>
-    public class ScriptBasedTokenizer : IWordTokenizerImpl
+    public class ScriptBasedTokenizer : IWordTokenizer
     {
         public List<ProcessedWord> Tokenize(string sentence, int sentenceIndex, TokenizationRules rules)
         {

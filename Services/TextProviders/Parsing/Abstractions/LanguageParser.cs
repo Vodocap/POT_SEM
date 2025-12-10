@@ -8,9 +8,9 @@ namespace POT_SEM.Services.TextProviders.Parsing
     public abstract class LanguageParser
     {
         protected readonly ITextSplitter _splitter;
-        protected readonly IWordTokenizerImpl _tokenizer;
+        protected readonly IWordTokenizer _tokenizer;
         
-        protected LanguageParser(ITextSplitter splitter, IWordTokenizerImpl tokenizer)
+        protected LanguageParser(ITextSplitter splitter, IWordTokenizer tokenizer)
         {
             _splitter = splitter;
             _tokenizer = tokenizer;

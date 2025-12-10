@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 namespace POT_SEM.Services.Patterns.Strategy
 {
     /// <summary>
-    /// STRATEGY PATTERN - External API translation implementation
+    /// External API translation implementation
     /// </summary>
 public class ApiTranslationService : ITranslationStrategy
     {
@@ -54,15 +54,14 @@ public class ApiTranslationService : ITranslationStrategy
                     results[word] = translation;
                 }
                 
-                // Small delay to avoid rate limiting
-                await Task.Delay(200);
+                await Task.Delay(50);
             }
             
             return results;
         }
         
         /// <summary>
-        /// Translate using MyMemory API (free, no key required)
+        /// Translate using MyMemory API
         /// </summary>
         private async Task<string?> TranslateViaMyMemoryAsync(string text, string sourceLang, string targetLang)
         {
@@ -88,9 +87,7 @@ public class ApiTranslationService : ITranslationStrategy
                 return null;
             }
         }
-        
-        // ===== API Response Models =====
-        
+                
         private class MyMemoryResponse
         {
             [JsonPropertyName("responseData")]

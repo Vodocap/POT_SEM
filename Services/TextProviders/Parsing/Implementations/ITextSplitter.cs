@@ -1,7 +1,7 @@
 namespace POT_SEM.Services.TextProviders.Parsing
 {
     /// <summary>
-    /// BRIDGE PATTERN - Implementation Interface
+    /// Implementation Interface
     /// Generic text splitting algorithm
     /// </summary>
     public interface ITextSplitter

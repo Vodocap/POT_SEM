@@ -6,8 +6,7 @@ using POT_SEM.Services.Patterns.Strategy.RandomWord;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.TopicGeneration
 {
     /// <summary>
-    /// CHAIN OF RESPONSIBILITY - Client/Facade
-    /// Builds and manages topic generation chain: Database → Wikipedia → Static
+    /// Builds and manages topic generation chain: Database -> Wikipedia -> Static
     /// Implements ITopicGenerationStrategy for compatibility
     /// </summary>
     public class ChainedTopicGenerationService : ITopicGenerationStrategy
@@ -20,7 +19,6 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.TopicGeneration
             Client supabase,
             WikipediaRandomWordService wikipediaService)
         {
-            // Build chain from end to start (reverse order)
             var staticHandler = new StaticTopicHandler();
             
             var wikipediaHandler = new WikipediaTopicHandler(wikipediaService);

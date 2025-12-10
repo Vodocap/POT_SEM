@@ -4,19 +4,18 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// Concrete Factory for Arabic (Singleton)
-    /// Creates 3-layer word displays: Original + Transliteration + Translation
+    /// Concrete Factory for Slovak (Singleton)
     /// </summary>
-    public class ArabicWordDisplayFactory : IWordDisplayFactory
+    public class SlovakWordDisplayFactory : IWordDisplayFactory
     {
-        private static readonly ArabicWordDisplayFactory _instance = new ArabicWordDisplayFactory();
-        public static ArabicWordDisplayFactory Instance => _instance;
+        private static readonly SlovakWordDisplayFactory _instance = new SlovakWordDisplayFactory();
+        public static SlovakWordDisplayFactory Instance => _instance;
         
-        private ArabicWordDisplayFactory() { }
+        private SlovakWordDisplayFactory() { }
         
-        public string LanguageCode => "ar";
+        public string LanguageCode => "sk";
         
-        public int LayerCount => 3;
+        public int LayerCount => 2;
         
         public IWordDisplay CreateWordDisplay(ProcessedWord word)
         {
@@ -26,7 +25,6 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
             }
             
             IWordDisplay display = new BaseWordDisplay(word);
-            display = new TransliterationDecorator(display, word.Transliteration);
             display = new TranslationDecorator(display, word.Translation);
             
             return display;
@@ -43,8 +41,7 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
         {
             return new List<string>
             {
-                "Original (Arabic)",
-                "Transliteration (Latin)",
+                "Original",
                 "Translation"
             };
         }

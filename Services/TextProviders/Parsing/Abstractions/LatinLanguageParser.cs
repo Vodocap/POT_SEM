@@ -3,11 +3,11 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.TextProviders.Parsing
 {
     /// <summary>
-    /// BRIDGE PATTERN
+    /// parser for Latin-based scripts
     /// </summary>
     public class LatinLanguageParser : LanguageParser
     {
-        public LatinLanguageParser(ITextSplitter splitter, IWordTokenizerImpl tokenizer)
+        public LatinLanguageParser(ITextSplitter splitter, IWordTokenizer tokenizer)
             : base(splitter, tokenizer)
         {
         }

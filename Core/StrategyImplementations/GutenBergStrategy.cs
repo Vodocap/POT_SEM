@@ -106,11 +106,11 @@ namespace POT_SEM.Core.StrategyImplementations
                     bookUrl = $"https://www.gutenberg.org/ebooks/{id}";
                 }
 
-                // Estimate word count (books are typically long)
+                // Estimate word count
                 var wordCount = content.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
                 if (wordCount < 100)
                 {
-                    wordCount = 50000; // Typical book length estimate
+                    wordCount = 50000; // book length estimate
                 }
 
                 return new Text
@@ -118,7 +118,7 @@ namespace POT_SEM.Core.StrategyImplementations
                     Title = title,
                     Content = content,
                     Language = criteria.Language,
-                    Difficulty = criteria.Difficulty, // ✅ Just pass it through
+                    Difficulty = criteria.Difficulty,
                     Metadata = new TextMetadata
                     {
                         Source = SourceName,
@@ -139,7 +139,6 @@ namespace POT_SEM.Core.StrategyImplementations
         {
             var content = "";
 
-            // Try to get subjects as description
             if (book.TryGetProperty("subjects", out var subjectsElement))
             {
                 var subjects = subjectsElement.EnumerateArray()
@@ -155,7 +154,6 @@ namespace POT_SEM.Core.StrategyImplementations
                 }
             }
 
-            // Fallback
             if (string.IsNullOrEmpty(content))
             {
                 content = $"\"{title}\" - A classic literary work from Project Gutenberg's collection of timeless literature.";

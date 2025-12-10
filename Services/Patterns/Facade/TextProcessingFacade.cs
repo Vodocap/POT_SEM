@@ -1,7 +1,7 @@
 using POT_SEM.Core.Interfaces;
 using POT_SEM.Core.Models;
-using POT_SEM.Services.TextProviders.Parsing;
 using POT_SEM.Services.Patterns.Flyweight;
+using POT_SEM.Services.TextProviders.Parsing;
 
 namespace POT_SEM.Services.Patterns.Facade
 {
@@ -37,29 +37,17 @@ namespace POT_SEM.Services.Patterns.Facade
             Console.WriteLine($"Starting text processing: {sourceLang} -> {targetLang}");
             OnProgress?.Invoke("Parsing text structure...");
             
-            // 1. Parse text into structured format using language-specific strategy
             var parser = LanguageParserFactory.CreateParser(sourceLang);
             var processedText = parser.ParseText(originalText, targetLang);
             Console.WriteLine($"Parsed {processedText.TotalSentences} sentences, {processedText.TotalWords} words");
             
-            // 2. SKIP word batch translation - words will be translated on-demand in UI
-            Console.WriteLine($"Skipping batch word translation (on-demand loading)");
-        
+            Console.WriteLine($"Skipping batch word translation (on-demand loading)");  
 
-        
-
-            // Apply furigana decorator (if available and language is Japanese)
             if (_furiganaEnrichment != null)
             {
-                Console.WriteLine("Enriching Japanese text with furigana...");
-                OnProgress?.Invoke("Adding furigana readings...");
                 processedText = await _furiganaEnrichment.EnrichTextAsync(processedText);
-                Console.WriteLine("Furigana enrichment complete");
             }
 
-            // 4.b Generate transliterations when available (e.g., Arabic, Japanese)
-            Console.WriteLine("Generating transliterations...");
-            OnProgress?.Invoke("Generating transliterations...");
             var transliteratedCount = 0;
             foreach (var sentence in processedText.Sentences)
             {
@@ -67,19 +55,16 @@ namespace POT_SEM.Services.Patterns.Facade
                 {
                     if (word.IsPunctuation) continue;
 
-                    // Find a transliteration service that supports the source language
                     var svc = _transliterationServices.FirstOrDefault(s => s.SupportsLanguage(processedText.SourceLanguage));
                     if (svc == null) continue;
 
                     try
                     {
-                        // If transliteration is already present (e.g., set by JS decorator), keep it
                         if (!string.IsNullOrEmpty(word.Transliteration))
                         {
                             continue;
                         }
 
-                        // For Japanese prefer to transliterate from furigana (hiragana) when available
                         var input = word.Furigana ?? word.Original;
                         var t = await svc.TransliterateAsync(input, processedText.SourceLanguage);
                         if (!string.IsNullOrEmpty(t))
@@ -96,7 +81,6 @@ namespace POT_SEM.Services.Patterns.Facade
             }
             Console.WriteLine($"Transliterated {transliteratedCount} words");
 
-            // 4. Translate sentences (preserve context) using translation strategy
             Console.WriteLine($"Translating {processedText.TotalSentences} sentences...");
             OnProgress?.Invoke($"Translating {processedText.TotalSentences} sentences...");
             var sentenceTranslatedCount = 0;
@@ -211,8 +195,6 @@ namespace POT_SEM.Services.Patterns.Facade
                     catch { }
                 }
             }
-
-            // Translate sentence (preserve context) using translation strategy
             try
             {
                 var sentTrans = await _translationChain.TranslateSentenceAsync(sentence.OriginalText, sourceLang, targetLang);
@@ -220,14 +202,13 @@ namespace POT_SEM.Services.Patterns.Facade
             }
             catch
             {
-                // Sentence translation failed, continue
             }
 
             return sentence;
         }
         
         /// <summary>
-        /// Translate single word (on-demand)
+        /// Translate single word
         /// </summary>
         public async Task<string?> TranslateWordAsync(
             string word,

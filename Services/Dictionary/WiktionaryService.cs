@@ -5,6 +5,9 @@ using POT_SEM.Core.Models;
 
 namespace POT_SEM.Services.Dictionary
 {
+    /// <summary>
+    /// Wiktionary service for translating 
+    /// </summary>
     public class WiktionaryService
     {
         private readonly HttpClient _httpClient;
@@ -79,7 +82,6 @@ namespace POT_SEM.Services.Dictionary
             var results = new Dictionary<string, DictionaryEntry>();
             if (words == null || words.Count == 0) return results;
 
-            // Simple parallelism with degree limit
             var semaphore = new System.Threading.SemaphoreSlim(10);
             var tasks = words.Select(async w =>
             {

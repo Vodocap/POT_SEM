@@ -4,7 +4,6 @@ using POT_SEM.Core.Models;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.TextFetching
 {
     /// <summary>
-    /// CHAIN OF RESPONSIBILITY PATTERN
     /// Language text source that chains multiple fetch strategies
     /// Each strategy tries to fulfill the request and passes remaining quota down the chain
     /// </summary>

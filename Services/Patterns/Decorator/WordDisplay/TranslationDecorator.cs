@@ -3,7 +3,7 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// DECORATOR - Adds translation layer (ALL languages)
+    /// Adds translation layer
     /// </summary>
     public class TranslationDecorator : IWordDisplay
     {
@@ -18,7 +18,7 @@ namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
         
         public List<DisplayLayer> GetLayers()
         {
-            var layers = _inner.GetLayers(); // Delegácia na vnútorný display
+            var layers = _inner.GetLayers();
             
             if (!string.IsNullOrEmpty(_translation))
             {

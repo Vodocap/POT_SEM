@@ -27,9 +27,6 @@
                     <button class="btn btn-sm btn-outline-secondary ms-2" @onclick="ToggleSentenceTranslations">
                         @(showSentenceTranslations ? "Hide" : "Show") + " sentence translations"
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary ms-2" @onclick="ToggleTransliteration">
-                        @(showTransliteration ? "Hide" : "Show") + " transliteration"
-                    </button>
                     @if (_originalText.Metadata?.EstimatedReadingTimeMinutes > 0)
                     {
                         <span class="badge">~@_originalText.Metadata.EstimatedReadingTimeMinutes min</span>
@@ -169,8 +166,7 @@
     
     private async Task TranslateWordsLazilyAsync(ProcessedText processedText)
     {
-        // Translate words one by one (not batch) after page is loaded
-        Console.WriteLine("Starting lazy word translation...");
+        // Translate words one by one after page is loaded
         var wordsTranslated = 0;
         
         foreach (var sentence in processedText.Sentences)
@@ -188,8 +184,7 @@
                         word.Translation = translation;
                         wordsTranslated++;
                         
-                        // Update UI every 5 words to show progress
-                        if (wordsTranslated % 5 == 0)
+                        if (wordsTranslated % 3 == 0) // Update UI every 3 new words
                         {
                             await InvokeAsync(StateHasChanged);
                         }
@@ -197,17 +192,15 @@
                 }
                 catch
                 {
-                    // Word translation failed, continue
                 }
                 
                 // Small delay to avoid overwhelming the API
-                await Task.Delay(50);
+                await Task.Delay(40);
             }
         }
         
         // Final UI update
         await InvokeAsync(StateHasChanged);
-        Console.WriteLine($"Lazy-loaded {wordsTranslated} word translations");
     }
 
     private Dictionary<int, string> sentenceStatus = new();
@@ -227,12 +220,6 @@
     }
 
     private bool showSentenceTranslations = false;
-    private bool showTransliteration = false;
-
-    private void ToggleTransliteration()
-    {
-        showTransliteration = !showTransliteration;
-    }
 
     private void ToggleSentenceTranslations()
     {
@@ -245,7 +232,7 @@
         
         try
         {
-            // STEP 1: Load original text by TextId (attempt to fetch a batch and find the requested id)
+            // Load original text by TextId (attempt to fetch a batch and find the requested id)
             var difficulty = ParseDifficulty(TextId);
             var provider = Builder.ForLanguage(SourceLang).ForDifficulty(difficulty).Build();
 
@@ -263,51 +250,20 @@
                 throw new Exception("Text not found");
             }
             
-            // STEP 2: Create initial processed text with just the original content (no translations yet)
-            // Parse sentences immediately to show structure
-            var sentenceTexts = _originalText.Content.Split(new[] { '.', '!', '?', '。', '！', '？' }, StringSplitOptions.RemoveEmptyEntries);
-            var sentences = new List<ProcessedSentence>();
-            
-            for (int i = 0; i < sentenceTexts.Length; i++)
-            {
-                var sentenceText = sentenceTexts[i].Trim();
-                if (string.IsNullOrWhiteSpace(sentenceText)) continue;
-                
-                var wordTexts = sentenceText.Split(new[] { ' ', '　' }, StringSplitOptions.RemoveEmptyEntries);
-                var words = new List<ProcessedWord>();
-                
-                for (int j = 0; j < wordTexts.Length; j++)
-                {
-                    words.Add(new ProcessedWord
-                    {
-                        Original = wordTexts[j],
-                        Normalized = wordTexts[j].ToLower(),
-                        Index = j,
-                        PositionInSentence = j
-                    });
-                }
-                
-                sentences.Add(new ProcessedSentence
-                {
-                    Index = i,
-                    OriginalText = sentenceText,
-                    Words = words
-                });
-            }
-            
+            // Create initial empty processed text to enable loading screen
             _processedText = new ProcessedText
             {
                 OriginalText = _originalText,
                 SourceLanguage = SourceLang,
                 TargetLanguage = TargetLang,
-                Sentences = sentences
+                Sentences = new List<ProcessedSentence>()
             };
             
-            // Show text immediately with loading overlay
+            // Show loading overlay immediately
             _isLoadingTranslations = true;
             StateHasChanged();
             
-            // STEP 3: Process text in background (translations, transliterations, etc.)
+            // Process text in background (parsing, translations, transliterations, etc.)
             _ = Task.Run(async () =>
             {
                 try

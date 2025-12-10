@@ -4,10 +4,9 @@ using System.Text.RegularExpressions;
 namespace POT_SEM.Services.TextProviders.Parsing
 {
     /// <summary>
-    /// BRIDGE PATTERN - Concrete Implementation
-    /// Space-based word tokenization (for Latin, Arabic, etc.)
+    /// Space-based word tokenization (for Latin based languages, Arabic, etc.)
     /// </summary>
-    public class SpaceBasedTokenizer : IWordTokenizerImpl
+    public class SpaceBasedTokenizer : IWordTokenizer
     {
         public List<ProcessedWord> Tokenize(string sentence, int sentenceIndex, TokenizationRules rules)
         {

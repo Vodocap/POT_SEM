@@ -3,7 +3,7 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// DECORATOR - Adds transliteration (Arabic: كتاب → kitab)
+    /// Adds transliteration layer for Arabic words
     /// </summary>
     public class TransliterationDecorator : IWordDisplay
     {

@@ -87,14 +87,14 @@ builder.Services.AddScoped<ITranslationStrategy>(sp => sp.GetRequiredService<Cha
 // API Dictionary service
 builder.Services.AddScoped(sp => new POT_SEM.Services.Dictionary.ApiDictionaryService(sp.GetRequiredService<HttpClient>()));
 
-// Word Translation Cache (caches individual word translations)
+// Word Translation Cache
 builder.Services.AddScoped<WordFlyweightFactory>(sp =>
 {
     var database = sp.GetService<DatabaseTranslationService>();
     return new WordFlyweightFactory(database);
 });
 
-// Transliteration services (Arabic, Japanese)
+// Transliteration services
 builder.Services.AddSingleton<POT_SEM.Services.Transliteration.ArabicTransliterationService>();
 builder.Services.AddSingleton<POT_SEM.Services.Transliteration.JapaneseRomajiService>();
 // Register transliteration implementations for IEnumerable<ITransliterationService>
@@ -108,7 +108,6 @@ builder.Services.AddScoped<POT_SEM.Services.Transliteration.FuriganaEnrichmentSe
     var romajiService = sp.GetRequiredService<POT_SEM.Services.Transliteration.JapaneseRomajiService>();
     return new POT_SEM.Services.Transliteration.FuriganaEnrichmentService(httpClient, romajiService);
 });
-// Also register as ITransliterationService
 builder.Services.AddScoped<POT_SEM.Core.Interfaces.ITransliterationService>(sp => 
     sp.GetRequiredService<POT_SEM.Services.Transliteration.FuriganaEnrichmentService>());
 

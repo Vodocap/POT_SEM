@@ -4,7 +4,7 @@ using POT_SEM.Services.Patterns.Strategy.RandomWord;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.TopicGeneration
 {
     /// <summary>
-    /// Second handler: Try Wikipedia Random Page API (works for all languages, free)
+    /// Second handler: Try Wikipedia Random Page API
     /// </summary>
     public class WikipediaTopicHandler : TopicGenerationHandler
     {

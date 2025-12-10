@@ -92,14 +92,13 @@ namespace POT_SEM.Services.Patterns.Factory
         }
 
         /// <summary>
-        /// TEMPLATE METHOD - Creates language source based on configuration
+        /// Creates language source based on configuration
         /// Uses Chain of Responsibility pattern
         /// </summary>
         private ILanguageTextSource CreateLanguageSource(
             LanguageConfig config,
             ITopicGenerationStrategy topicStrategy)
         {
-            // Create base strategies
             var wiki = new WikipediaStrategy(_httpClient, config.LanguageCode);
             var simpleWiki = config.HasSimpleWikipedia 
                 ? new SimpleWikipediaStrategy(_httpClient) 
@@ -108,15 +107,12 @@ namespace POT_SEM.Services.Patterns.Factory
                 ? new GutenbergStrategy(_httpClient) 
                 : null;
             
-            // Create database strategy if available
             var dbStrategy = _supabase != null 
                 ? new DatabaseTextFetchStrategy(_supabase, config.LanguageCode)
                 : null;
 
-            // Build difficulty-based chain map (with database as first handler if available)
             var chainMap = BuildChainMap(wiki, simpleWiki, gutenberg, dbStrategy, config.LanguageCode, topicStrategy);
 
-            // Build default chain
             TextFetchChainHandler defaultChain = new StrategyChainHandler(wiki, config.LanguageCode, topicStrategy);
             if (dbStrategy != null)
             {
@@ -125,7 +121,6 @@ namespace POT_SEM.Services.Patterns.Factory
                 defaultChain = dbHandler;
             }
 
-            // Create base chained source
             var baseSource = new ChainedLanguageTextSource(
                 config.LanguageCode,
                 config.LanguageName,
@@ -134,7 +129,6 @@ namespace POT_SEM.Services.Patterns.Factory
                 defaultChain
             );
 
-            // Wrap with AutoSave decorator if storage service is available
             if (_storageService != null)
             {
                 return new AutoSaveTextSourceWrapper(baseSource, _storageService);

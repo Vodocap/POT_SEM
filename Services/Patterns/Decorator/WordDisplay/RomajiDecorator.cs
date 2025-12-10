@@ -3,7 +3,7 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Services.Patterns.Decorator.WordDisplay
 {
     /// <summary>
-    /// DECORATOR - Adds romaji (Japanese: 文化 → bunka)
+    /// Adds romaji (latin transliteration) layer for Japanese words
     /// </summary>
     public class RomajiDecorator : IWordDisplay
     {

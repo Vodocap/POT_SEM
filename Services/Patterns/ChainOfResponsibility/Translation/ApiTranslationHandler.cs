@@ -3,7 +3,7 @@ using POT_SEM.Services.Patterns.Strategy;
 namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
 {
     /// <summary>
-    /// Final handler: AI translation API (slowest, saves results to database).
+    /// Final handler: AI translation API handler
     /// </summary>
     public class ApiTranslationHandler : TranslationHandler
     {
@@ -20,7 +20,6 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
         
         public override async Task<string?> HandleAsync(string word, string sourceLang, string targetLang)
         {
-            // Last resort: Call AI API (slowest)
             Console.WriteLine($"API REQUEST: {word}");
             
             var result = await _api.TranslateWordAsync(word, sourceLang, targetLang);
@@ -29,7 +28,6 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
             {
                 Console.WriteLine($"API SUCCESS: {word} -> {result}");
                 
-                // Save to database for future requests (write-back cache)
                 if (_database != null)
                 {
                     try
@@ -39,7 +37,6 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
                     }
                     catch
                     {
-                        // Failed to save, but translation succeeded
                         Console.WriteLine($" API TRANSLATION HANDLER FAILED TO SAVE TO DB: {word}");
                     }
                 }
@@ -47,7 +44,6 @@ namespace POT_SEM.Services.Patterns.ChainOfResponsibility.Translation
                 return result;
             }
             
-            // End of chain - no handler could process the request
             Console.WriteLine($"CHAIN EXHAUSTED: No handler could translate '{word}'");
             return null;
         }

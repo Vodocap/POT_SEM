@@ -1,7 +1,7 @@
 namespace POT_SEM.Services.TextProviders.Parsing
 {
     /// <summary>
-    /// FACTORY - Creates parser with appropriate Bridge configuration
+    /// Creates parser with appropriate configuration
     /// </summary>
     public class LanguageParserFactory
     {

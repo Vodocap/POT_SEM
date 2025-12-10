@@ -12,9 +12,6 @@ namespace POT_SEM.Services.Transliteration
     /// <summary>
     /// Furigana enrichment service with API integration
     /// Enriches ProcessedText with furigana and transliteration data
-    /// 1. Applies static dictionary for common words
-    /// 2. Calls Fungana AI API for kanji words
-    /// 3. Generates romaji transliteration for all Japanese words
     /// </summary>
     public class FuriganaEnrichmentService : ITransliterationService
     {
@@ -50,7 +47,6 @@ namespace POT_SEM.Services.Transliteration
         {
             if (language != "ja") return null;
             
-            // For single word transliteration, try to get furigana first then convert
             if (_httpClient != null && HasKanji(text))
             {
                 try
@@ -67,11 +63,9 @@ namespace POT_SEM.Services.Transliteration
                 }
                 catch
                 {
-                    // Fall through to romaji service
                 }
             }
 
-            // Use romaji service directly for hiragana/katakana
             if (_romajiService != null)
             {
                 return await _romajiService.TransliterateAsync(text, language);
@@ -102,17 +96,14 @@ namespace POT_SEM.Services.Transliteration
                         continue;
                     }
 
-                    // Step 1: Try static dictionary first
                     if (_staticReadings.TryGetValue(word.Original, out var reading))
                     {
                         word.Furigana = reading;
                         word.Metadata["hasFurigana"] = true;
                     }
 
-                    // Check if word contains Kanji characters
                     bool hasKanji = word.Original.Any(c => c >= '\u4E00' && c <= '\u9FFF');
 
-                    // Step 2: If word has kanji and no furigana, call API (if available)
                     if (hasKanji && string.IsNullOrEmpty(word.Furigana) && _httpClient != null)
                     {
                         try
@@ -134,17 +125,13 @@ namespace POT_SEM.Services.Transliteration
                         }
                         catch
                         {
-                            // Fungana API call failed
                         }
                     }
 
-                    // Step 3: Generate romaji transliteration (if service available)
                     if (_romajiService != null && string.IsNullOrEmpty(word.Transliteration))
                     {
                         try
                         {
-                            // For kanji words with furigana, transliterate the furigana
-                            // For hiragana-only words, transliterate the word itself
                             var input = !string.IsNullOrEmpty(word.Furigana) ? word.Furigana : word.Original;
                             
                             var romaji = await _romajiService.TransliterateAsync(input, "ja");
@@ -155,7 +142,6 @@ namespace POT_SEM.Services.Transliteration
                         }
                         catch
                         {
-                            // Transliteration failed
                         }
                     }
                 }

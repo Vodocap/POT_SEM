@@ -24,7 +24,6 @@ namespace POT_SEM.Services.Databases
                     return false;
                 }
                 
-                // Check if exists
                 var existing = await _supabase
                     .From<DatabaseText>()
                     .Where(x => x.Title == text.Title)
@@ -54,7 +53,6 @@ namespace POT_SEM.Services.Databases
                     .From<DatabaseText>()
                     .Insert(dbText);
                 
-                // ✅ Check response
                 if (response?.Models?.Any() != true)
                 {
                     return false;

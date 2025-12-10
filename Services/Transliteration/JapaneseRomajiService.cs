@@ -3,7 +3,7 @@ using POT_SEM.Core.Interfaces;
 namespace POT_SEM.Services.Transliteration
 {
     /// <summary>
-    /// STRATEGY - Japanese to Romaji conversion
+    /// Japanese to Romaji conversion
     /// Converts hiragana/katakana to Latin alphabet
     /// </summary>
     public class JapaneseRomajiService : ITransliterationService
@@ -57,7 +57,6 @@ namespace POT_SEM.Services.Transliteration
                 return null;
             }
             
-            // Convert katakana to hiragana for consistent mapping
             var normalized = ConvertKatakanaToHiragana(text);
 
             var sb = new System.Text.StringBuilder(normalized.Length * 2);
@@ -74,13 +73,11 @@ namespace POT_SEM.Services.Transliteration
                 }
                 else
                 {
-                    // skip kanji/unknown characters rather than echoing them
                 }
             }
 
             if (!mappedAny)
             {
-                // Nothing transliterable (likely pure kanji) — signal failure so caller doesn't store kanji as romaji
                 return await Task.FromResult<string?>(null);
             }
 
@@ -97,7 +94,7 @@ namespace POT_SEM.Services.Transliteration
                 // Katakana block: U+30A0 - U+30FF, Hiragana block: U+3040 - U+309F
                 if (ch >= '\u30A1' && ch <= '\u30F6')
                 {
-                    // shift to hiragana equivalent
+                    //hiragana equivalent
                     var hiragana = (char)(ch - 0x60);
                     sb.Append(hiragana);
                 }

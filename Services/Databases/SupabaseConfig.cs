@@ -9,7 +9,6 @@ namespace POT_SEM.Services.Databases
         
         /// <summary>
         /// Load Supabase configuration from appsettings.json
-        /// Tries Development first, falls back to Production
         /// </summary>
         public static async Task<SupabaseConfig> LoadAsync(HttpClient http)
         {
@@ -21,10 +20,8 @@ namespace POT_SEM.Services.Databases
             }
             catch (HttpRequestException)
             {
-                // Development file doesn't exist, try production
             }
             
-            // Fallback to production config (GitHub Pages)
             try
             {
                 var prodConfig = await LoadFromFileAsync(http, "appsettings.json");
@@ -50,7 +47,6 @@ namespace POT_SEM.Services.Databases
             
             var config = settings.Supabase;
             
-            // Validate
             if (string.IsNullOrWhiteSpace(config.Url) || config.Url.Contains("PLACEHOLDER"))
             {
                 throw new Exception($"Invalid Supabase URL in {fileName}");

@@ -37,7 +37,7 @@ namespace POT_SEM.Services.Patterns.Strategy
 
         public Task<string?> TranslateSentenceAsync(string sentence, string sourceLang, string targetLang)
         {
-            // Dictionary does NOT translate sentences (no context)
+            // Dictionary does NOT translate sentences
             return Task.FromResult<string?>(null);
         }
 
