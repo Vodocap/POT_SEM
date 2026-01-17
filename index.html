@@ -26,6 +26,19 @@
         <span class="dismiss">🗙</span>
     </div>
     
+    <!-- GitHub Pages redirect handler -->
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var redirect = params.get('redirect');
+            if (redirect) {
+                var base = document.querySelector('base').getAttribute('href');
+                var targetUrl = base + redirect;
+                history.replaceState(null, null, targetUrl);
+            }
+        })();
+    </script>
+    
     <script src="_framework/blazor.webassembly.js"></script>
 </body>
 
