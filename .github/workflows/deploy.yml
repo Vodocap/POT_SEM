@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   deploy:
@@ -95,4 +97,4 @@ jobs:
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         folder: release/wwwroot
-        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: gh-pages
