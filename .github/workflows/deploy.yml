@@ -26,8 +26,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore Glot/Glot.csproj
     
-    - name: Create dummy Development config
-      run: echo '{}' > Glot/wwwroot/appsettings.Development.json
+    # TENTO KROK SMAZÁN - už není potřeba
     
     - name: Build
       run: dotnet build Glot/Glot.csproj -c Release --no-restore
