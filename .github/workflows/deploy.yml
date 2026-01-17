@@ -26,8 +26,6 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore Glot/Glot.csproj
     
-    # TENTO KROK SMAZÁN - už není potřeba
-    
     - name: Build
       run: dotnet build Glot/Glot.csproj -c Release --no-restore
     
