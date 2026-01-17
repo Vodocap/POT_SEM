@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   deploy:
@@ -24,8 +26,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore Glot/Glot.csproj
     
-    - name: Create dummy Development config
-      run: echo '{}' > Glot/wwwroot/appsettings.Development.json
+    # TENTO KROK SMAZÁN - už není potřeba
     
     - name: Build
       run: dotnet build Glot/Glot.csproj -c Release --no-restore
@@ -95,4 +96,4 @@ jobs:
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         folder: release/wwwroot
-        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: gh-pages
