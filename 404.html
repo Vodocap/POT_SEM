@@ -1,22 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+<!-- GitHub Pages SPA redirect -->
+<script>
+  var pathSegmentsToKeep = 1;
+  var l = window.location;
+  l.replace(
+    l.protocol + "//" + l.hostname + (l.port ? ":" + l.port : "") +
+    l.pathname.split("/").slice(0, 1 + pathSegmentsToKeep).join("/") + "/?/" +
+    l.pathname.slice(1).split("/").slice(pathSegmentsToKeep).join("/").replace(/&/g, "~and~") +
+    (l.search ? "&" + l.search.slice(1).replace(/&/g, "~and~") : "") +
+    l.hash
+  );
+</script>
     <meta charset="utf-8" />
-    <title>Redirecting...</title>
-    <script>
-      (function() {
-        var path = window.location.pathname;
-        var route = path.replace(/^\/POT_SEM\//, '');
-        
-        if (route && route !== '' && route !== '/') {
-          window.location.replace('/POT_SEM/?redirect=' + encodeURIComponent(route));
-        } else {
-          window.location.replace('/POT_SEM/');
-        }
-      })();
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Glot</title>
+    <base href="/POT_SEM/" />
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="Glot.styles.css" rel="stylesheet" />
 </head>
+
 <body>
-    <p>⏳ Redirecting...</p>
+    <div id="app">
+        <div class="minimal-loader">
+            <div class="loader-circle"></div>
+            <div class="loader-text">Loading</div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    
+    <!-- GitHub Pages redirect handler -->
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var redirect = params.get('redirect');
+            if (redirect) {
+                var base = document.querySelector('base').getAttribute('href');
+                var targetUrl = base + redirect;
+                history.replaceState(null, null, targetUrl);
+            }
+        })();
+    </script>
+    
+    <script src="_framework/blazor.webassembly.js"></script>
 </body>
+
 </html>
