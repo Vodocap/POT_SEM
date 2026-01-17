@@ -4,15 +4,14 @@
     <meta charset="utf-8" />
     <title>Redirecting...</title>
     <script>
-      (function() 
-      {
+      (function() {
         var path = window.location.pathname;
-        var base = '/POT_SEM/';
+        var route = path.replace(/^\/POT_SEM\//, '');
         
-        if (path.startsWith(base)) 
-        {
-          var route = path.substring(base.length);
-          window.location.replace(base + '?redirect=' + encodeURIComponent(route));
+        if (route && route !== '' && route !== '/') {
+          window.location.replace('/POT_SEM/?redirect=' + encodeURIComponent(route));
+        } else {
+          window.location.replace('/POT_SEM/');
         }
       })();
     </script>
