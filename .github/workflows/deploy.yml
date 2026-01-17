@@ -50,32 +50,41 @@ jobs:
     - name: Add .nojekyll file
       run: touch release/wwwroot/.nojekyll
     
-    - name: Create 404.html redirect
+    - name: Copy index.html to 404.html
+      run: cp release/wwwroot/index.html release/wwwroot/404.html
+    
+    - name: Add SPA redirect script to index.html HEAD
       run: |
-        cat > release/wwwroot/404.html << 'EOFHTML'
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="utf-8" />
-            <title>Redirecting...</title>
-            <script>
-              (function() {
-                var path = window.location.pathname;
-                var route = path.replace(/^\/POT_SEM\//, '');
-                
-                if (route && route !== '' && route !== '/') {
-                  window.location.replace('/POT_SEM/?redirect=' + encodeURIComponent(route));
-                } else {
-                  window.location.replace('/POT_SEM/');
-                }
-              })();
-            </script>
-        </head>
-        <body>
-            <p>⏳ Redirecting...</p>
-        </body>
-        </html>
-        EOFHTML
+        sed -i '/<head>/a \
+        <!-- SPA redirect hack for GitHub Pages -->\
+        <script>\
+          (function(l) {\
+            if (l.search[1] === "/" ) {\
+              var decoded = l.search.slice(1).split("&").map(function(s) { \
+                return s.replace(/~and~/g, "&")\
+              }).join("?");\
+              window.history.replaceState(null, null,\
+                  l.pathname.slice(0, -1) + decoded + l.hash\
+              );\
+            }\
+          }(window.location))\
+        </script>' release/wwwroot/index.html
+    
+    - name: Add redirect script to 404.html
+      run: |
+        sed -i '/<head>/a \
+        <!-- GitHub Pages SPA redirect -->\
+        <script>\
+          var pathSegmentsToKeep = 1;\
+          var l = window.location;\
+          l.replace(\
+            l.protocol + "//" + l.hostname + (l.port ? ":" + l.port : "") +\
+            l.pathname.split("/").slice(0, 1 + pathSegmentsToKeep).join("/") + "/?/" +\
+            l.pathname.slice(1).split("/").slice(pathSegmentsToKeep).join("/").replace(/&/g, "~and~") +\
+            (l.search ? "&" + l.search.slice(1).replace(/&/g, "~and~") : "") +\
+            l.hash\
+          );\
+        </script>' release/wwwroot/404.html
     
     - name: Deploy to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
