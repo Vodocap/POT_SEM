@@ -39,7 +39,14 @@
         })();
     </script>
     
-    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script>
+        Blazor.start({
+            loadBootResource: function (type, name, defaultUri, integrity) {
+                return defaultUri;
+            }
+        });
+    </script>
 </body>
 
 </html>
